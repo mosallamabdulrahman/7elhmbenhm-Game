@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { motion } from "motion/react";
 import { Edit2, FolderTree, Plus, Search, Trash2 } from "lucide-react";
 
@@ -10,8 +10,39 @@ export default function GroupsTab({
   busy,
   setGroupModal,
   deleteGroup,
+  onBulkAction,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkAction, setBulkAction] = useState("");
+
+  const tableRef = useRef(null);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const scrollLeft = useRef(0);
+
+  const handleMouseDown = (e) => {
+    if (e.target.closest("button, input, select, a")) return;
+    isDragging.current = true;
+    startX.current = e.pageX - (tableRef.current?.offsetLeft || 0);
+    scrollLeft.current = tableRef.current?.scrollLeft || 0;
+  };
+
+  const handleMouseLeave = () => {
+    isDragging.current = false;
+  };
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging.current || !tableRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - tableRef.current.offsetLeft;
+    const walk = (x - startX.current) * 1.3;
+    tableRef.current.scrollLeft = scrollLeft.current - walk;
+  };
 
   const categoriesCountByGroupId = useMemo(() => {
     const map = new Map();
@@ -29,6 +60,53 @@ export default function GroupsTab({
     if (!q) return groups;
     return groups.filter((g) => g.name?.toLowerCase().includes(q));
   }, [groups, searchQuery]);
+
+  const isAllSelected =
+    filteredGroups.length > 0 &&
+    filteredGroups.every((g) => selectedIds.has(g.id));
+  const isSomeSelected =
+    !isAllSelected && filteredGroups.some((g) => selectedIds.has(g.id));
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        filteredGroups.forEach((g) => next.delete(g.id));
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        filteredGroups.forEach((g) => next.add(g.id));
+        return next;
+      });
+    }
+  };
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleApplyBulkAction = async () => {
+    if (!bulkAction || selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    if (bulkAction === "delete") {
+      if (
+        !window.confirm(
+          `هل أنت متأكد من حذف ${ids.length} تصنيف؟ ستصبح فئات الأسئلة التابعة لها بدون تصنيف رئيسي.`,
+        )
+      )
+        return;
+      await onBulkAction?.({ action: "delete", ids });
+      setSelectedIds(new Set());
+      setBulkAction("");
+    }
+  };
 
   return (
     <motion.div
@@ -61,13 +139,72 @@ export default function GroupsTab({
         </div>
       </div>
 
+      {/* WordPress-style Bulk Actions Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-[#f6f7f7] border border-[#ccd0d4] rounded p-2 text-[13px]">
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={bulkAction}
+            onChange={(e) => setBulkAction(e.target.value)}
+            className="border border-[#ccd0d4] bg-white rounded px-2.5 py-1 text-xs font-semibold text-slate-700 outline-none focus:border-[#2271b1] shadow-xs cursor-pointer"
+          >
+            <option value="">إجراءات جماعية</option>
+            <option value="delete">حذف</option>
+          </select>
+
+          <button
+            type="button"
+            disabled={busy || !bulkAction || selectedIds.size === 0}
+            onClick={handleApplyBulkAction}
+            className="bg-[#f6f7f7] border border-[#2271b1] hover:bg-[#2271b1] hover:text-white text-[#2271b1] text-xs font-semibold px-3 py-1 rounded transition shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            تطبيق
+          </button>
+
+          {selectedIds.size > 0 && (
+            <span className="text-xs font-bold text-slate-700 mr-2 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-2xs">
+              تم تحديد {selectedIds.size} من {filteredGroups.length}
+            </span>
+          )}
+        </div>
+
+        {selectedIds.size > 0 && (
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs text-rose-600 hover:text-rose-700 font-semibold cursor-pointer underline mr-auto"
+          >
+            إلغاء التحديد
+          </button>
+        )}
+      </div>
+
       {/* Main Container */}
       <div className="bg-white border border-[#ccd0d4] shadow-sm overflow-hidden rounded-sm">
-        {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-right border-collapse text-[13px]">
+        {/* Desktop & Tablet Table View */}
+        <div
+          ref={tableRef}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+          className="hidden md:block overflow-x-auto cursor-grab active:cursor-grabbing"
+          style={{ touchAction: "pan-x pan-y" }}
+        >
+          <table className="min-w-[700px] w-full text-right border-collapse text-[13px]">
             <thead>
               <tr className="bg-white border-b border-[#ccd0d4] select-none text-[#2c3338] font-bold text-[14px]">
+                <th className="p-3 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    aria-label="تحديد كل التصنيفات"
+                    checked={isAllSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = isSomeSelected;
+                    }}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 rounded border-[#ccd0d4] text-[#2271b1] focus:ring-[#2271b1] cursor-pointer align-middle"
+                  />
+                </th>
                 <th className="p-3 text-right">اسم التصنيف</th>
                 <th className="p-3 text-right">عدد فئات الأسئلة</th>
                 <th className="p-3 text-right">تاريخ الإضافة</th>
@@ -77,7 +214,7 @@ export default function GroupsTab({
             <tbody className="divide-y divide-[#f0f0f1]">
               {filteredGroups.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="p-8 text-center text-slate-400">
+                  <td colSpan="5" className="p-8 text-center text-slate-400">
                     لا توجد تصنيفات حالياً. اضغط على &quot;أضف تصنيفاً جديداً&quot; للبدء.
                   </td>
                 </tr>
@@ -88,8 +225,19 @@ export default function GroupsTab({
                   return (
                     <tr
                       key={group.id}
-                      className="group hover:bg-[#f6f7f7] transition-colors"
+                      className={`group hover:bg-[#f6f7f7] transition-colors ${
+                        selectedIds.has(group.id) ? "bg-[#f0f6fc]" : ""
+                      }`}
                     >
+                      <td className="p-3 w-10 text-center">
+                        <input
+                          type="checkbox"
+                          aria-label="تحديد هذا التصنيف"
+                          checked={selectedIds.has(group.id)}
+                          onChange={() => handleToggleSelect(group.id)}
+                          className="w-4 h-4 rounded border-[#ccd0d4] text-[#2271b1] focus:ring-[#2271b1] cursor-pointer align-middle"
+                        />
+                      </td>
                       <td className="p-3 font-semibold text-[#1d2327]">
                         <div className="flex items-center gap-2">
                           <FolderTree className="w-4 h-4 text-[#2271b1] shrink-0" />
@@ -146,9 +294,21 @@ export default function GroupsTab({
               const catCount =
                 categoriesCountByGroupId.get(String(group.id)) || 0;
               return (
-                <div key={group.id} className="p-4 space-y-2.5">
+                <div
+                  key={group.id}
+                  className={`p-4 space-y-2.5 ${
+                    selectedIds.has(group.id) ? "bg-[#f0f6fc]" : ""
+                  }`}
+                >
                   <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 min-w-0">
+                    <input
+                      type="checkbox"
+                      aria-label="تحديد هذا التصنيف"
+                      checked={selectedIds.has(group.id)}
+                      onChange={() => handleToggleSelect(group.id)}
+                      className="w-4 h-4 rounded border-[#ccd0d4] text-[#2271b1] focus:ring-[#2271b1] cursor-pointer shrink-0 align-middle"
+                    />
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <FolderTree className="w-5 h-5 text-[#2271b1] shrink-0" />
                       <span className="font-bold text-[14px] text-[#1d2327] truncate">
                         {group.name}

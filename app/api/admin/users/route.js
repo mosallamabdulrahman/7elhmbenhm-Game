@@ -104,3 +104,57 @@ export async function POST(request) {
     );
   }
 }
+
+// DELETE /api/admin/users — bulk delete users
+export async function DELETE(request) {
+  try {
+    const auth = await requireAdmin(request);
+    if (auth.error) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const { ids } = body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json(
+        { error: "لم يتم تحديد أي مستخدمين للحذف." },
+        { status: 400 },
+      );
+    }
+
+    // Exclude current logged in admin
+    const toDelete = ids.filter((id) => id !== auth.user.id);
+    if (toDelete.length === 0) {
+      return NextResponse.json(
+        { error: "لا يمكنك حذف حسابك الحالي." },
+        { status: 400 },
+      );
+    }
+
+    const supabaseAdmin = getSupabaseAdmin();
+
+    const { count } = await supabaseAdmin
+      .from("admin_users")
+      .select("*", { count: "exact", head: true });
+
+    if ((count || 0) - toDelete.length < 1) {
+      return NextResponse.json(
+        { error: "لازم يبقى فيه أدمن واحد على الأقل في النظام." },
+        { status: 400 },
+      );
+    }
+
+    for (const id of toDelete) {
+      await supabaseAdmin.auth.admin.deleteUser(id);
+    }
+
+    return NextResponse.json({ ok: true, count: toDelete.length });
+  } catch (err) {
+    console.error("DELETE /api/admin/users failed:", err);
+    return NextResponse.json(
+      { error: err?.message || "فشل الحذف." },
+      { status: 500 },
+    );
+  }
+}

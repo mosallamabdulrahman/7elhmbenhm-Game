@@ -5,3 +5,6 @@
 
 2. **Development Server (`npm run dev`)**:
    - Always inform the user explicitly if stopping and restarting `npm run dev` is required (for example, when updating `.env.local` files, installing new packages, or when hot-reloading needs a fresh server start).
+
+3. **Git & GitHub Commits/Push**:
+   - NEVER run `git push` or push changes to GitHub. The user will handle all Git pushes themselves.

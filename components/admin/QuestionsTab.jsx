@@ -76,14 +76,16 @@ function CategoryFilterDropdown({
                   📁
                 </span>
               )}
-              <span className="truncate text-slate-800">{selectedCat.name}</span>
+              <span className="truncate text-slate-800">
+                {selectedCat.name}
+              </span>
             </>
           ) : (
             <>
               <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[11px] font-bold shrink-0">
                 ☰
               </span>
-              <span className="text-slate-700 font-medium">كل التصنيفات</span>
+              <span className="text-slate-700 font-medium">كل الفئات</span>
             </>
           )}
         </span>
@@ -120,7 +122,7 @@ function CategoryFilterDropdown({
                 <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs">
                   ☰
                 </span>
-                <span>كل التصنيفات</span>
+                <span>كل الفئات</span>
               </div>
               <span className="text-xs font-semibold text-slate-400">
                 {questions.length} سؤال
@@ -164,7 +166,9 @@ function CategoryFilterDropdown({
                       {count}
                     </span>
                     {isSelected && (
-                      <span className="text-xs font-bold text-[#2271b1]">✓</span>
+                      <span className="text-xs font-bold text-[#2271b1]">
+                        ✓
+                      </span>
                     )}
                   </div>
                 </button>
@@ -193,13 +197,49 @@ export default function QuestionsTab({
   difficultyEditFor,
   setDifficultyEditFor,
   onInlineDifficultyChange,
+  statusEditFor,
+  setStatusEditFor,
+  onInlineStatusChange,
+  onBulkAction,
 }) {
   const [expandedIds, setExpandedIds] = useState(new Set());
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkAction, setBulkAction] = useState("");
+  const [bulkTargetCategory, setBulkTargetCategory] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const filterKey = `${filterCategory || ""}_${searchQuery || ""}`;
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
   const tableTopRef = useRef(null);
+
+  // Tablet & Desktop drag-to-scroll support
+  const tableRef = useRef(null);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const scrollLeft = useRef(0);
+
+  const handleMouseDown = (e) => {
+    if (e.target.closest("button, input, select, a")) return;
+    isDragging.current = true;
+    startX.current = e.pageX - (tableRef.current?.offsetLeft || 0);
+    scrollLeft.current = tableRef.current?.scrollLeft || 0;
+  };
+
+  const handleMouseLeave = () => {
+    isDragging.current = false;
+  };
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging.current || !tableRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - tableRef.current.offsetLeft;
+    const walk = (x - startX.current) * 1.3;
+    tableRef.current.scrollLeft = scrollLeft.current - walk;
+  };
 
   // Adjust page state during render when filter or search changes (official React pattern)
   if (prevFilterKey !== filterKey) {
@@ -207,7 +247,10 @@ export default function QuestionsTab({
     setPage(1);
   }
 
-  const totalPages = Math.max(1, Math.ceil(filteredQuestions.length / pageSize));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredQuestions.length / pageSize),
+  );
   const currentPage = Math.min(page, totalPages);
 
   const startIndex = (currentPage - 1) * pageSize;
@@ -217,11 +260,77 @@ export default function QuestionsTab({
     return filteredQuestions.slice(startIndex, endIndex);
   }, [filteredQuestions, startIndex, endIndex]);
 
+  const isAllSelected =
+    paginatedQuestions.length > 0 &&
+    paginatedQuestions.every((q) => selectedIds.has(q.id));
+  const isSomeSelected =
+    !isAllSelected && paginatedQuestions.some((q) => selectedIds.has(q.id));
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedQuestions.forEach((q) => next.delete(q.id));
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedQuestions.forEach((q) => next.add(q.id));
+        return next;
+      });
+    }
+  };
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleApplyBulkAction = async () => {
+    if (!bulkAction || selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    if (bulkAction === "delete") {
+      if (!window.confirm(`هل أنت متأكد من حذف ${ids.length} سؤال؟`)) return;
+      await onBulkAction?.({ action: "delete", ids });
+      setSelectedIds(new Set());
+      setBulkAction("");
+    } else if (bulkAction === "activate") {
+      await onBulkAction?.({ action: "activate", ids });
+      setSelectedIds(new Set());
+      setBulkAction("");
+    } else if (bulkAction === "deactivate") {
+      await onBulkAction?.({ action: "deactivate", ids });
+      setSelectedIds(new Set());
+      setBulkAction("");
+    } else if (bulkAction === "change_category") {
+      if (!bulkTargetCategory) {
+        alert("يرجى اختيار الفئة المستهدفة لنقل الأسئلة إليها.");
+        return;
+      }
+      await onBulkAction?.({
+        action: "change_category",
+        ids,
+        category_id: bulkTargetCategory,
+      });
+      setSelectedIds(new Set());
+      setBulkAction("");
+      setBulkTargetCategory("");
+    }
+  };
+
   const goToPage = (nextPage) => {
     const target = Math.max(1, Math.min(nextPage, totalPages));
     setPage(target);
     requestAnimationFrame(() => {
-      tableTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      tableTopRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
     });
   };
 
@@ -264,15 +373,92 @@ export default function QuestionsTab({
         </div>
       </div>
 
+      {/* WordPress-style Bulk Actions Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-[#f6f7f7] border border-[#ccd0d4] rounded p-2 text-[13px]">
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={bulkAction}
+            onChange={(e) => setBulkAction(e.target.value)}
+            className="border border-[#ccd0d4] bg-white rounded px-2.5 py-1 text-xs font-semibold text-slate-700 outline-none focus:border-[#2271b1] shadow-xs cursor-pointer"
+          >
+            <option value="">إجراءات جماعية</option>
+            <option value="activate">تفعيل</option>
+            <option value="deactivate">تعطيل</option>
+            <option value="change_category">نقل إلى فئة...</option>
+            <option value="delete">حذف</option>
+          </select>
+
+          {bulkAction === "change_category" && (
+            <select
+              value={bulkTargetCategory}
+              onChange={(e) => setBulkTargetCategory(e.target.value)}
+              className="border border-[#ccd0d4] bg-white rounded px-2.5 py-1 text-xs font-semibold text-slate-700 outline-none focus:border-[#2271b1] shadow-xs cursor-pointer max-w-xs"
+            >
+              <option value="">اختر الفئة المستهدفة...</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <button
+            type="button"
+            disabled={busy || !bulkAction || selectedIds.size === 0}
+            onClick={handleApplyBulkAction}
+            className="bg-[#f6f7f7] border border-[#2271b1] hover:bg-[#2271b1] hover:text-white text-[#2271b1] text-xs font-semibold px-3 py-1 rounded transition shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            تطبيق
+          </button>
+
+          {selectedIds.size > 0 && (
+            <span className="text-xs font-bold text-slate-700 mr-2 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-2xs">
+              تم تحديد {selectedIds.size} من {paginatedQuestions.length}
+            </span>
+          )}
+        </div>
+
+        {selectedIds.size > 0 && (
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs text-rose-600 hover:text-rose-700 font-semibold cursor-pointer underline mr-auto"
+          >
+            إلغاء التحديد
+          </button>
+        )}
+      </div>
+
       {/* Main Container */}
       <div className="bg-white border border-[#ccd0d4] shadow-sm overflow-hidden rounded-sm">
-        {/* Desktop Table (Visible on md and larger screens) */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-right border-collapse text-[13px]">
+        {/* Desktop & Tablet Table (Horizontal scroll & drag enabled for tablets) */}
+        <div
+          ref={tableRef}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+          className="hidden md:block overflow-x-auto cursor-grab active:cursor-grabbing"
+          style={{ touchAction: "pan-x pan-y" }}
+        >
+          <table className="min-w-[1020px] w-full text-right border-collapse text-[13px]">
             <thead>
               <tr className="bg-white border-b border-[#ccd0d4] select-none text-[#2c3338] font-bold text-[14px]">
+                <th className="p-3 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    aria-label="تحديد الكل في الصفحة"
+                    checked={isAllSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = isSomeSelected;
+                    }}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 rounded border-[#ccd0d4] text-[#2271b1] focus:ring-[#2271b1] cursor-pointer align-middle"
+                  />
+                </th>
                 <th className="p-3 text-right">السؤال</th>
-                <th className="p-3 text-right">التصنيف</th>
+                <th className="p-3 text-right">الفئة</th>
                 <th className="p-3 text-right">الصعوبة</th>
                 <th className="p-3 text-right">الموضع</th>
                 <th className="p-3 text-right">الوسائط</th>
@@ -283,8 +469,8 @@ export default function QuestionsTab({
             <tbody className="divide-y divide-[#f0f0f1]">
               {filteredQuestions.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="p-8 text-center text-slate-400">
-                    لا توجد أسئلة تطابق البحث أو التصنيف المختار.
+                  <td colSpan="8" className="p-8 text-center text-slate-400">
+                    لا توجد أسئلة تطابق البحث أو الفئة المختارة.
                   </td>
                 </tr>
               ) : (
@@ -305,12 +491,34 @@ export default function QuestionsTab({
                   return (
                     <tr
                       key={q.id}
-                      className="group hover:bg-[#f6f7f7] transition-colors"
+                      className={`group hover:bg-[#f6f7f7] transition-colors ${
+                        selectedIds.has(q.id) ? "bg-[#f0f6fc]" : ""
+                      }`}
                     >
+                      <td className="p-3 w-10 text-center">
+                        <input
+                          type="checkbox"
+                          aria-label="تحديد هذا السؤال"
+                          checked={selectedIds.has(q.id)}
+                          onChange={() => handleToggleSelect(q.id)}
+                          className="w-4 h-4 rounded border-[#ccd0d4] text-[#2271b1] focus:ring-[#2271b1] cursor-pointer align-middle"
+                        />
+                      </td>
                       <td className="p-3 max-w-sm">
-                        <div className="font-semibold text-[#1d2327] mb-1 line-clamp-2">
-                          {q.question_text}
-                        </div>
+                        {cat?.name === "ولا كلمة" ? (
+                          <div className="font-bold text-[#1d2327] mb-1 flex items-center gap-1.5">
+                            <span className="bg-orange-100 text-orange-800 text-[10px] px-2 py-0.5 rounded-full font-black">
+                              ولا كلمة
+                            </span>
+                            <span className="line-clamp-1">
+                              {q.answer_text}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="font-semibold text-[#1d2327] mb-1 line-clamp-2">
+                            {q.question_text}
+                          </div>
+                        )}
                         <div className="text-[11px] text-emerald-700 font-bold mb-1">
                           الإجابة: {q.answer_text}
                         </div>
@@ -348,98 +556,103 @@ export default function QuestionsTab({
                           <span className="text-slate-400">غير معروف</span>
                         )}
                       </td>
-                      <td className="p-3 relative">
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() =>
-                            setDifficultyEditFor((cur) =>
-                              cur === q.id ? null : q.id,
-                            )
-                          }
-                          className={`inline-block font-semibold px-2 py-0.5 rounded text-[11px] transition disabled:opacity-50 disabled:cursor-not-allowed ${
-                            q.difficulty === "easy"
-                              ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                              : q.difficulty === "medium"
-                                ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                                : "bg-rose-100 text-rose-700 hover:bg-rose-200"
-                          }`}
-                        >
-                          {DIFFICULTY_AR[q.difficulty]} ({q.strikes}⚡)
-                        </button>
+                      <td className="p-3">
+                        <div className="relative inline-block">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              setDifficultyEditFor((cur) =>
+                                cur === q.id ? null : q.id,
+                              )
+                            }
+                            className={`inline-flex items-center gap-1.5 font-semibold px-2 py-0.5 rounded text-[11px] transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                              q.difficulty === "easy"
+                                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                                : q.difficulty === "medium"
+                                  ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                                  : "bg-rose-100 text-rose-700 hover:bg-rose-200"
+                            }`}
+                          >
+                            <span>
+                              {DIFFICULTY_AR[q.difficulty]} ({q.strikes}⚡)
+                            </span>
+                            <ChevronDown className="w-3 h-3 opacity-60" />
+                          </button>
 
-                        {difficultyEditFor === q.id && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-30"
-                              onClick={() => setDifficultyEditFor(null)}
-                            />
-                            <div className="absolute right-0 top-full z-40 mt-1 w-28 rounded-lg border border-[#ccd0d4] bg-white shadow-lg overflow-hidden">
-                              {["easy", "medium", "hard"].map((level) => (
-                                <button
-                                  key={level}
-                                  type="button"
-                                  onClick={() =>
-                                    onInlineDifficultyChange(q, level)
-                                  }
-                                  className={`block w-full text-right px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-50 ${
-                                    q.difficulty === level
-                                      ? "text-cyan-700 bg-cyan-50"
-                                      : "text-slate-700"
-                                  }`}
-                                >
-                                  {DIFFICULTY_AR[level]}
-                                </button>
-                              ))}
-                            </div>
-                          </>
-                        )}
+                          {difficultyEditFor === q.id && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-30"
+                                onClick={() => setDifficultyEditFor(null)}
+                              />
+                              <div className="absolute right-0 top-full mt-1 z-40 w-28 rounded-lg border border-[#ccd0d4] bg-white shadow-lg overflow-hidden py-1">
+                                {["easy", "medium", "hard"].map((level) => (
+                                  <button
+                                    key={level}
+                                    type="button"
+                                    onClick={() =>
+                                      onInlineDifficultyChange(q, level)
+                                    }
+                                    className={`block w-full text-right px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-50 cursor-pointer ${
+                                      q.difficulty === level
+                                        ? "text-cyan-700 bg-cyan-50"
+                                        : "text-slate-700"
+                                    }`}
+                                  >
+                                    {DIFFICULTY_AR[level]}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </td>
                       <td className="p-3 text-slate-500 ">#{q.position}</td>
                       <td className="p-3">
                         {q.media_url ? (
                           <>
                             <a
-                            href={q.media_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[#2271b1] hover:underline"
-                          >
-                            {q.media_type === "image" ? (
-                              <>
-                                <img
-                                  src={q.media_url}
-                                  alt={q.media_type}
-                                  className="w-14 h-14"
-                                />
-                                {q.image_duration ? (
-                                  <span className="text-[11px] font-bold text-slate-500">
-                                    {q.image_duration} ث
+                              href={q.media_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[#2271b1] hover:underline"
+                            >
+                              {q.media_type === "image" ? (
+                                <>
+                                  <img
+                                    src={q.media_url}
+                                    alt={q.media_type}
+                                    className="w-14 h-14"
+                                  />
+                                  {q.image_duration ? (
+                                    <span className="text-[11px] font-bold text-slate-500">
+                                      {q.image_duration} ث
+                                    </span>
+                                  ) : null}
+                                </>
+                              ) : q.media_type === "video" ? (
+                                <>
+                                  <Video className="w-3.5 h-3.5" />
+                                  <span>
+                                    فيديو
+                                    {q.media_play_count
+                                      ? ` × ${q.media_play_count}`
+                                      : ""}
                                   </span>
-                                ) : null}
-                              </>
-                            ) : q.media_type === "video" ? (
-                              <>
-                                <Video className="w-3.5 h-3.5" />
-                                <span>
-                                  فيديو
-                                  {q.media_play_count
-                                    ? ` × ${q.media_play_count}`
-                                    : ""}
-                                </span>
-                              </>
-                            ) : (
-                              <>
-                                <Music className="w-3.5 h-3.5" />
-                                <span>
-                                  صوت
-                                  {q.media_play_count
-                                    ? ` × ${q.media_play_count}`
-                                    : ""}
-                                </span>
-                              </>
-                            )}
-                          </a>
+                                </>
+                              ) : (
+                                <>
+                                  <Music className="w-3.5 h-3.5" />
+                                  <span>
+                                    صوت
+                                    {q.media_play_count
+                                      ? ` × ${q.media_play_count}`
+                                      : ""}
+                                  </span>
+                                </>
+                              )}
+                            </a>
                             {q.show_question_first && (
                               <span className="block mt-1 text-[10px] font-bold text-cyan-700 bg-cyan-50 border border-cyan-100 px-1.5 py-0.5 rounded w-fit">
                                 السؤال أولاً
@@ -488,13 +701,69 @@ export default function QuestionsTab({
                         )}
                       </td>
                       <td className="p-3">
-                        <span
-                          className={`inline-block font-semibold text-[11px] ${
-                            q.is_active ? "text-emerald-600" : "text-slate-400"
-                          }`}
-                        >
-                          {q.is_active ? "مفعّل" : "معطّل"}
-                        </span>
+                        <div className="relative inline-block">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              setStatusEditFor((cur) =>
+                                cur === q.id ? null : q.id,
+                              )
+                            }
+                            className={`inline-flex items-center gap-1.5 font-semibold px-2 py-0.5 rounded text-[11px] transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                              q.is_active
+                                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                q.is_active ? "bg-emerald-500" : "bg-slate-400"
+                              }`}
+                            />
+                            <span>{q.is_active ? "مفعّل" : "معطّل"}</span>
+                            <ChevronDown className="w-3 h-3 opacity-60" />
+                          </button>
+
+                          {statusEditFor === q.id && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-30"
+                                onClick={() => setStatusEditFor(null)}
+                              />
+                              <div className="absolute right-0 top-full mt-1 z-40 w-28 rounded-lg border border-[#ccd0d4] bg-white shadow-lg overflow-hidden py-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onInlineStatusChange(q, true);
+                                    setStatusEditFor(null);
+                                  }}
+                                  className={`block w-full text-right px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-50 cursor-pointer ${
+                                    q.is_active
+                                      ? "text-emerald-700 bg-emerald-50"
+                                      : "text-slate-700"
+                                  }`}
+                                >
+                                  مفعّل
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onInlineStatusChange(q, false);
+                                    setStatusEditFor(null);
+                                  }}
+                                  className={`block w-full text-right px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-50 cursor-pointer ${
+                                    !q.is_active
+                                      ? "text-rose-700 bg-rose-50"
+                                      : "text-slate-700"
+                                  }`}
+                                >
+                                  معطّل
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -508,7 +777,7 @@ export default function QuestionsTab({
         <div className="block md:hidden divide-y divide-[#ccd0d4] bg-white">
           {filteredQuestions.length === 0 ? (
             <div className="p-8 text-center text-slate-400">
-              لا توجد أسئلة تطابق البحث أو التصنيف المختار.
+              لا توجد أسئلة تطابق البحث أو الفئة المختارة.
             </div>
           ) : (
             paginatedQuestions.map((q) => {
@@ -527,9 +796,21 @@ export default function QuestionsTab({
                   : null;
 
               return (
-                <div key={q.id} className="p-3.5 space-y-2">
-                  {/* Header Row: Question Text + Category + Status Badge + Expand/Collapse Button */}
+                <div
+                  key={q.id}
+                  className={`p-3.5 space-y-2 ${
+                    selectedIds.has(q.id) ? "bg-[#f0f6fc]" : ""
+                  }`}
+                >
+                  {/* Header Row: Checkbox + Question Text + Category + Status Badge + Expand/Collapse Button */}
                   <div className="flex items-start justify-between gap-2">
+                    <input
+                      type="checkbox"
+                      aria-label="تحديد هذا السؤال"
+                      checked={selectedIds.has(q.id)}
+                      onChange={() => handleToggleSelect(q.id)}
+                      className="w-4 h-4 mt-1 rounded border-[#ccd0d4] text-[#2271b1] focus:ring-[#2271b1] cursor-pointer shrink-0 align-middle"
+                    />
                     <div className="space-y-1.5 flex-1 min-w-0">
                       <div className="font-bold text-[14px] text-[#1d2327] leading-snug">
                         {q.question_text}
@@ -549,16 +830,62 @@ export default function QuestionsTab({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0 mt-0.5">
-                      <span
-                        className={`inline-block font-semibold text-[11px] px-2 py-0.5 rounded-full ${
+                    <div className="flex items-center gap-2 shrink-0 mt-0.5 relative">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          setStatusEditFor((cur) =>
+                            cur === `m_${q.id}` ? null : `m_${q.id}`,
+                          )
+                        }
+                        className={`inline-flex items-center gap-1 font-semibold text-[11px] px-2 py-0.5 rounded-full cursor-pointer transition ${
                           q.is_active
                             ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                             : "bg-slate-100 text-slate-500 border border-slate-200"
                         }`}
                       >
                         {q.is_active ? "مفعّل" : "معطّل"}
-                      </span>
+                      </button>
+
+                      {statusEditFor === `m_${q.id}` && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-30"
+                            onClick={() => setStatusEditFor(null)}
+                          />
+                          <div className="absolute left-0 top-full -mt-0.5 z-40 w-28 rounded-lg border border-[#ccd0d4] bg-white shadow-lg overflow-hidden py-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onInlineStatusChange(q, true);
+                                setStatusEditFor(null);
+                              }}
+                              className={`block w-full text-right px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-50 cursor-pointer ${
+                                q.is_active
+                                  ? "text-emerald-700 bg-emerald-50"
+                                  : "text-slate-700"
+                              }`}
+                            >
+                              مفعّل
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onInlineStatusChange(q, false);
+                                setStatusEditFor(null);
+                              }}
+                              className={`block w-full text-right px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-50 cursor-pointer ${
+                                !q.is_active
+                                  ? "text-rose-700 bg-rose-50"
+                                  : "text-slate-700"
+                              }`}
+                            >
+                              معطّل
+                            </button>
+                          </div>
+                        </>
+                      )}
 
                       {/* Circular Collapse / Expand Button */}
                       <button
@@ -639,7 +966,7 @@ export default function QuestionsTab({
                         <span className="font-bold text-slate-500">
                           الصعوبة:
                         </span>
-                        <div>
+                        <div className="relative inline-block">
                           <button
                             type="button"
                             disabled={busy}
@@ -648,7 +975,7 @@ export default function QuestionsTab({
                                 cur === q.id ? null : q.id,
                               )
                             }
-                            className={`inline-block font-semibold px-2 py-0.5 rounded text-[11px] transition ${
+                            className={`inline-flex items-center gap-1.5 font-semibold px-2 py-0.5 rounded text-[11px] transition cursor-pointer disabled:opacity-50 ${
                               q.difficulty === "easy"
                                 ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
                                 : q.difficulty === "medium"
@@ -656,7 +983,10 @@ export default function QuestionsTab({
                                   : "bg-rose-100 text-rose-700 hover:bg-rose-200"
                             }`}
                           >
-                            {DIFFICULTY_AR[q.difficulty]} ({q.strikes}⚡)
+                            <span>
+                              {DIFFICULTY_AR[q.difficulty]} ({q.strikes}⚡)
+                            </span>
+                            <ChevronDown className="w-3 h-3 opacity-60" />
                           </button>
 
                           {difficultyEditFor === q.id && (
@@ -665,7 +995,7 @@ export default function QuestionsTab({
                                 className="fixed inset-0 z-30"
                                 onClick={() => setDifficultyEditFor(null)}
                               />
-                              <div className="absolute left-0 top-full z-40 mt-1 w-28 rounded-lg border border-[#ccd0d4] bg-white shadow-lg overflow-hidden">
+                              <div className="absolute left-0 top-full -mt-0.5 z-40 w-28 rounded-lg border border-[#ccd0d4] bg-white shadow-lg overflow-hidden py-1">
                                 {["easy", "medium", "hard"].map((level) => (
                                   <button
                                     key={level}
@@ -673,7 +1003,7 @@ export default function QuestionsTab({
                                     onClick={() =>
                                       onInlineDifficultyChange(q, level)
                                     }
-                                    className={`block w-full text-right px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-50 ${
+                                    className={`block w-full text-right px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-50 cursor-pointer ${
                                       q.difficulty === level
                                         ? "text-cyan-700 bg-cyan-50"
                                         : "text-slate-700"
@@ -705,53 +1035,53 @@ export default function QuestionsTab({
                           {q.media_url ? (
                             <>
                               <a
-                              href={q.media_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 text-[#2271b1] hover:underline font-semibold"
-                            >
-                              {q.media_type === "image" ? (
-                                <>
-                                  <img
-                                    src={q.media_url}
-                                    alt={q.media_type}
-                                    className="w-8 h-8 rounded object-cover border border-slate-200"
-                                  />
-                                  {q.image_duration ? (
-                                    <span className="text-[11px] font-bold text-slate-500">
-                                      ({q.image_duration} ث)
+                                href={q.media_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-[#2271b1] hover:underline font-semibold"
+                              >
+                                {q.media_type === "image" ? (
+                                  <>
+                                    <img
+                                      src={q.media_url}
+                                      alt={q.media_type}
+                                      className="w-8 h-8 rounded object-cover border border-slate-200"
+                                    />
+                                    {q.image_duration ? (
+                                      <span className="text-[11px] font-bold text-slate-500">
+                                        ({q.image_duration} ث)
+                                      </span>
+                                    ) : null}
+                                  </>
+                                ) : q.media_type === "video" ? (
+                                  <>
+                                    <Video className="w-3.5 h-3.5" />
+                                    <span>
+                                      فيديو
+                                      {q.media_play_count
+                                        ? ` × ${q.media_play_count}`
+                                        : ""}
                                     </span>
-                                  ) : null}
-                                </>
-                              ) : q.media_type === "video" ? (
-                                <>
-                                  <Video className="w-3.5 h-3.5" />
-                                  <span>
-                                    فيديو
-                                    {q.media_play_count
-                                      ? ` × ${q.media_play_count}`
-                                      : ""}
-                                  </span>
-                                </>
-                              ) : (
-                                <>
-                                  <Music className="w-3.5 h-3.5" />
-                                  <span>
-                                    صوت
-                                    {q.media_play_count
-                                      ? ` × ${q.media_play_count}`
-                                      : ""}
-                                  </span>
-                                </>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Music className="w-3.5 h-3.5" />
+                                    <span>
+                                      صوت
+                                      {q.media_play_count
+                                        ? ` × ${q.media_play_count}`
+                                        : ""}
+                                    </span>
+                                  </>
+                                )}
+                              </a>
+                              {q.show_question_first && (
+                                <span className="block mt-1 text-[10px] font-bold text-cyan-700 bg-cyan-50 border border-cyan-100 px-1.5 py-0.5 rounded w-fit">
+                                  السؤال أولاً
+                                </span>
                               )}
-                            </a>
-                            {q.show_question_first && (
-                              <span className="block mt-1 text-[10px] font-bold text-cyan-700 bg-cyan-50 border border-cyan-100 px-1.5 py-0.5 rounded w-fit">
-                                السؤال أولاً
-                              </span>
-                            )}
-                          </>
-                        ) : (
+                            </>
+                          ) : (
                             <span className="text-slate-400">—</span>
                           )}
                         </div>
@@ -805,13 +1135,69 @@ export default function QuestionsTab({
                         <span className="font-bold text-slate-500">
                           الحالة:
                         </span>
-                        <span
-                          className={`inline-block font-semibold text-[11px] ${
-                            q.is_active ? "text-emerald-600" : "text-slate-400"
-                          }`}
-                        >
-                          {q.is_active ? "مفعّل" : "معطّل"}
-                        </span>
+                        <div className="relative inline-block">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              setStatusEditFor((cur) =>
+                                cur === `exp_${q.id}` ? null : `exp_${q.id}`,
+                              )
+                            }
+                            className={`inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded text-[11px] transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                              q.is_active
+                                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                q.is_active ? "bg-emerald-500" : "bg-slate-400"
+                              }`}
+                            />
+                            <span>{q.is_active ? "مفعّل" : "معطّل"}</span>
+                            <ChevronDown className="w-3 h-3 opacity-60" />
+                          </button>
+
+                          {statusEditFor === `exp_${q.id}` && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-30"
+                                onClick={() => setStatusEditFor(null)}
+                              />
+                              <div className="absolute left-0 top-full -mt-0.5 z-40 w-28 rounded-lg border border-[#ccd0d4] bg-white shadow-lg overflow-hidden py-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onInlineStatusChange(q, true);
+                                    setStatusEditFor(null);
+                                  }}
+                                  className={`block w-full text-right px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-50 cursor-pointer ${
+                                    q.is_active
+                                      ? "text-emerald-700 bg-emerald-50"
+                                      : "text-slate-700"
+                                  }`}
+                                >
+                                  مفعّل
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onInlineStatusChange(q, false);
+                                    setStatusEditFor(null);
+                                  }}
+                                  className={`block w-full text-right px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-50 cursor-pointer ${
+                                    !q.is_active
+                                      ? "text-rose-700 bg-rose-50"
+                                      : "text-slate-700"
+                                  }`}
+                                >
+                                  معطّل
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </motion.div>
                   )}
@@ -830,9 +1216,19 @@ export default function QuestionsTab({
                 "لا توجد نتائج"
               ) : (
                 <>
-                  عرض <strong className="text-slate-800 font-bold">{startIndex + 1}</strong> إلى{" "}
-                  <strong className="text-slate-800 font-bold">{endIndex}</strong> من أصل{" "}
-                  <strong className="text-slate-800 font-bold">{filteredQuestions.length}</strong> سؤال
+                  عرض{" "}
+                  <strong className="text-slate-800 font-bold">
+                    {startIndex + 1}
+                  </strong>{" "}
+                  إلى{" "}
+                  <strong className="text-slate-800 font-bold">
+                    {endIndex}
+                  </strong>{" "}
+                  من أصل{" "}
+                  <strong className="text-slate-800 font-bold">
+                    {filteredQuestions.length}
+                  </strong>{" "}
+                  سؤال
                 </>
               )}
             </span>
@@ -845,9 +1241,12 @@ export default function QuestionsTab({
                     type="button"
                     onClick={() => {
                       setPageSize(size);
-                      setCurrentPage(1);
+                      setPage(1);
                       requestAnimationFrame(() => {
-                        tableTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        tableTopRef.current?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        });
                       });
                     }}
                     className={`px-2 py-0.5 rounded text-xs font-semibold cursor-pointer transition ${
@@ -883,7 +1282,10 @@ export default function QuestionsTab({
                 {getPageNumbers(currentPage, totalPages).map((p, idx) => {
                   if (p === "...") {
                     return (
-                      <span key={`dots-${idx}`} className="px-1.5 text-slate-400 text-xs font-bold">
+                      <span
+                        key={`dots-${idx}`}
+                        className="px-1.5 text-slate-400 text-xs font-bold"
+                      >
                         …
                       </span>
                     );

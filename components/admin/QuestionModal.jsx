@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import {
   AlertTriangle,
+  Check,
+  ChevronDown,
+  ChevronUp,
   ImageIcon,
   Loader2,
   Repeat,
@@ -23,6 +26,100 @@ const nextPosition = (questions, categoryId, excludeId) => {
     .map((q) => q.position);
   return used.length ? Math.max(...used) + 1 : 1;
 };
+
+function CategorySelectDropdown({ categories, selectedId, onChange }) {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const selectedCat =
+    categories.find((c) => String(c.id) === String(selectedId)) ||
+    categories[0];
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    if (open) {
+      document.addEventListener("mousedown", handleOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [open]);
+
+  return (
+    <div className="relative w-full" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="mt-1 w-full flex items-center justify-between gap-2 border border-slate-200 bg-white rounded-xl px-3 py-2.5 text-sm text-slate-800 shadow-xs outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition cursor-pointer hover:bg-slate-50"
+      >
+        <span className="flex items-center gap-2.5 truncate font-bold text-xs sm:text-sm">
+          {selectedCat?.image_url ? (
+            <img
+              src={selectedCat.image_url}
+              alt=""
+              className="w-6 h-6 rounded-full object-cover shrink-0 border border-slate-200 shadow-2xs"
+            />
+          ) : (
+            <span className="w-6 h-6 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center text-xs font-bold shrink-0">
+              📁
+            </span>
+          )}
+          <span className="truncate text-slate-900">
+            {selectedCat?.name || "اختر الفئة"}
+          </span>
+        </span>
+        <ChevronDown
+          className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+            open ? "rotate-180 text-cyan-600" : ""
+          }`}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1.5 w-full bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-64 overflow-y-auto z-50 divide-y divide-slate-100 p-1.5">
+          {categories.map((c) => {
+            const isSelected = String(c.id) === String(selectedId);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => {
+                  onChange(c.id);
+                  setOpen(false);
+                }}
+                className={`w-full text-right px-3 py-2.5 text-xs sm:text-sm rounded-xl transition cursor-pointer flex items-center justify-between ${
+                  isSelected
+                    ? "bg-cyan-50 text-cyan-900 font-black"
+                    : "text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                <div className="flex items-center gap-2.5 truncate">
+                  {c.image_url ? (
+                    <img
+                      src={c.image_url}
+                      alt=""
+                      className="w-6 h-6 rounded-full object-cover shrink-0 border border-slate-200 shadow-2xs"
+                    />
+                  ) : (
+                    <span className="w-6 h-6 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center text-xs font-bold shrink-0">
+                      📁
+                    </span>
+                  )}
+                  <span className="truncate">{c.name}</span>
+                </div>
+                {isSelected && (
+                  <Check className="w-4 h-4 text-cyan-600 shrink-0" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function QuestionModal({
   question,
@@ -47,8 +144,8 @@ export default function QuestionModal({
       };
     }
     const targetCategoryId =
-      (defaultCategoryId &&
-        categories.some((c) => String(c.id) === String(defaultCategoryId)))
+      defaultCategoryId &&
+      categories.some((c) => String(c.id) === String(defaultCategoryId))
         ? defaultCategoryId
         : categories[0]?.id || "";
     return {
@@ -82,19 +179,49 @@ export default function QuestionModal({
   );
   const positionTaken = usedPositions.has(form.position);
 
+  const getNextFreePosition = (current) => {
+    let next = Math.max(1, (Number(current) || 0) + 1);
+    while (usedPositions.has(next)) next += 1;
+    return next;
+  };
+
+  const getPrevFreePosition = (current) => {
+    let prev = (Number(current) || 1) - 1;
+    while (prev >= 1 && usedPositions.has(prev)) prev -= 1;
+    return prev >= 1 ? prev : current;
+  };
+
+  const handleStepUp = () => {
+    set("position", getNextFreePosition(form.position));
+  };
+
+  const handleStepDown = () => {
+    set("position", getPrevFreePosition(form.position));
+  };
+
+  const selectedCategory = categories.find(
+    (c) => String(c.id) === String(form.category_id),
+  );
+  const isWlaKelma =
+    selectedCategory?.name === "ولا كلمة" ||
+    String(form.category_id) === "wla_kelma";
+
   const isDuplicateQuestion = (questions || []).some((q) => {
     if (q.category_id !== form.category_id) return false;
     if (question && q.id === question.id) return false;
     if (form.id && q.id === form.id) return false;
-    const sameText =
-      q.question_text?.trim().toLowerCase() ===
-      form.question_text?.trim().toLowerCase();
     const sameAnswer =
       (q.answer_text?.trim().toLowerCase() || "") ===
       (form.answer_text?.trim().toLowerCase() || "");
     const sameAnswerImage =
       (q.answer_image_url?.trim() || "") ===
       (form.answer_image_url?.trim() || "");
+    if (isWlaKelma) {
+      return sameAnswer && sameAnswerImage;
+    }
+    const sameText =
+      q.question_text?.trim().toLowerCase() ===
+      form.question_text?.trim().toLowerCase();
     return sameText && sameAnswer && sameAnswerImage;
   });
 
@@ -154,54 +281,66 @@ export default function QuestionModal({
         <div className="flex-1 overflow-y-auto p-6 space-y-4 text-right">
           <div>
             <label className="text-[11px] font-bold text-slate-500">
-              التصنيف *
+              الفئة *
             </label>
-            <select
-              value={form.category_id}
-              onChange={(e) => handleCategoryChange(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:border-cyan-500 outline-none transition-colors"
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-[11px] font-bold text-slate-500">
-              نص السؤال *
-            </label>
-            <textarea
-              value={form.question_text}
-              onChange={(e) => set("question_text", e.target.value)}
-              rows={3}
-              className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm resize-none outline-none transition-colors ${
-                isDuplicateQuestion
-                  ? "border-rose-400 focus:border-rose-500 bg-rose-50/50 text-rose-900"
-                  : "border-slate-200 focus:border-cyan-500"
-              }`}
-              placeholder="اكتب السؤال هنا..."
+            <CategorySelectDropdown
+              categories={categories}
+              selectedId={form.category_id}
+              onChange={handleCategoryChange}
             />
-            {isDuplicateQuestion && (
-              <p className="mt-1.5 text-[11px] font-bold text-rose-600 flex items-center gap-1">
-                <AlertTriangle className="h-3.5 w-3.5 inline shrink-0" />
-                هالسؤال موجود من قبل بنفس التصنيف، ما تقدر تضيفه مرة ثانية!
-              </p>
-            )}
           </div>
+
+          {isWlaKelma ? (
+            <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3.5 text-right">
+              <p className="text-xs font-bold text-amber-900 leading-relaxed">
+                🤫 فئة ولا كلمة: كل المطلوب هو اسم الشيء المطلوب تمثيله وصورته
+                التوضيحية (مثل مهنة، رياضة، نشاط، أو مثل شعبي). اللاعب بيمسح
+                الباركود ويشوف الصورة ويمثلها لربعه بدون أي كلام!
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label className="text-[11px] font-bold text-slate-500">
+                نص السؤال *
+              </label>
+              <textarea
+                value={form.question_text}
+                onChange={(e) => set("question_text", e.target.value)}
+                rows={3}
+                className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm resize-none outline-none transition-colors ${
+                  isDuplicateQuestion
+                    ? "border-rose-400 focus:border-rose-500 bg-rose-50/50 text-rose-900"
+                    : "border-slate-200 focus:border-cyan-500"
+                }`}
+                placeholder="اكتب السؤال هنا..."
+              />
+              {isDuplicateQuestion && (
+                <p className="mt-1.5 text-[11px] font-bold text-rose-600 flex items-center gap-1">
+                  <AlertTriangle className="h-3.5 w-3.5 inline shrink-0" />
+                  هالسؤال موجود من قبل بنفس التصنيف، ما تقدر تضيفه مرة ثانية!
+                </p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="text-[11px] font-bold text-slate-500">
-              الإجابة الصحيحة *
+              {isWlaKelma
+                ? "المطلوب تمثيله / الإجابة (مثل: مهنة: رائد فضاء، رياضة: ركوب الخيل، مثل شعبي) *"
+                : "الإجابة الصحيحة *"}
             </label>
             <input
               value={form.answer_text}
               onChange={(e) => set("answer_text", e.target.value)}
               className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-cyan-500 outline-none transition-colors"
-              placeholder="الإجابة"
+              placeholder={isWlaKelma ? "مهنة: رائد فضاء" : "الإجابة"}
             />
+            {isWlaKelma && isDuplicateQuestion && (
+              <p className="mt-1.5 text-[11px] font-bold text-rose-600 flex items-center gap-1">
+                <AlertTriangle className="h-3.5 w-3.5 inline shrink-0" />
+                هذا العنصر موجود مسبقاً في هذه الفئة!
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -227,119 +366,162 @@ export default function QuestionModal({
               </select>
             </div>
             <div>
-              <label className="text-[11px] font-bold text-slate-500">
-                ترتيب العرض
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={form.position}
-                onChange={(e) => set("position", Number(e.target.value))}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-cyan-500 outline-none transition-colors"
-              />
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-slate-500">
+                  ترتيب العرض
+                </label>
+              </div>
+              <div className="relative mt-1 flex items-center">
+                <input
+                  type="number"
+                  min={1}
+                  value={form.position}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      handleStepUp();
+                    } else if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      handleStepDown();
+                    }
+                  }}
+                  onChange={(e) => set("position", Number(e.target.value))}
+                  className={`w-full rounded-xl border px-3 py-2 pl-16 text-sm font-bold transition-colors outline-none ${
+                    positionTaken
+                      ? "border-rose-400 bg-rose-50/40 text-rose-900 focus:border-rose-500"
+                      : "border-slate-200 focus:border-cyan-500 text-slate-800"
+                  }`}
+                />
+                <div className="absolute left-1.5 flex items-center gap-1">
+                  <button
+                    type="button"
+                    title="الموضع المتاح التالي"
+                    onClick={handleStepUp}
+                    className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-cyan-50 hover:text-cyan-700 text-slate-600 flex items-center justify-center transition active:scale-95 cursor-pointer"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    title="الموضع المتاح السابق"
+                    onClick={handleStepDown}
+                    className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-cyan-50 hover:text-cyan-700 text-slate-600 flex items-center justify-center transition active:scale-95 cursor-pointer"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
               {positionTaken && (
-                <p className="mt-1 text-[10px] font-bold text-rose-600">
-                  الموضع ده متاخد بسؤال ثاني في نفس التصنيف — اختار موضع فاضي.
-                </p>
+                <div className="mt-1.5 flex flex-col gap-1 text-[10px] font-bold text-rose-600">
+                  <span>الموضع ده متاخد بسؤال ثاني في نفس الفئة.</span>
+                  <button
+                    type="button"
+                    onClick={handleStepUp}
+                    className="text-cyan-700 hover:underline cursor-pointer text-right inline-flex items-center gap-1 font-black"
+                  >
+                    ⚡ اضغط هنا للانتقال لأقرب موضع متاح (#
+                    {getNextFreePosition(form.position)})
+                  </button>
+                </div>
               )}
             </div>
           </div>
 
-          <div>
-            <label className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
-              <ImageIcon className="h-3 w-3" /> وسائط (صورة أو صوت أو فيديو —
-              اختياري)
-            </label>
-            <div className="mt-1">
-              <MediaUpload
-                value={form.media_url || ""}
-                type={form.media_type}
-                onChange={(url, type) => {
-                  // Clearing or switching media type must clear the setting
-                  // that no longer applies, otherwise a leftover value from a
-                  // previous file would be saved against the new media.
-                  setForm((f) => ({
-                    ...f,
-                    media_url: url,
-                    media_type: type,
-                    image_duration: type === "image" ? f.image_duration : null,
-                    media_play_count:
-                      type === "audio" || type === "video"
-                        ? f.media_play_count
-                        : null,
-                    show_question_first: url ? f.show_question_first : false,
-                  }));
-                }}
-                extra={
-                  hasMedia && (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <label className="flex items-center gap-1.5 cursor-pointer select-none bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl px-2.5 py-1 text-slate-700 hover:bg-slate-100 transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(form.show_question_first)}
-                          onChange={(e) =>
-                            set("show_question_first", e.target.checked)
-                          }
-                          className="rounded text-cyan-600 focus:ring-cyan-500 h-3.5 w-3.5 border-slate-300 cursor-pointer"
-                        />
-                        <span className="text-xs font-bold whitespace-nowrap">
-                          ظهور السؤال أولاً
-                        </span>
-                      </label>
-                      {isImageMedia && (
-                        <div className="flex items-center gap-1.5 bg-cyan-50/70 border border-cyan-100 rounded-xl px-2.5 py-1">
-                          <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1 whitespace-nowrap">
-                            <Timer className="h-3.5 w-3.5 text-cyan-600" />
-                            مدة العرض:
-                          </label>
+          {!isWlaKelma && (
+            <div>
+              <label className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                <ImageIcon className="h-3 w-3" /> وسائط (صورة أو صوت أو فيديو —
+                اختياري)
+              </label>
+              <div className="mt-1">
+                <MediaUpload
+                  value={form.media_url || ""}
+                  type={form.media_type}
+                  onChange={(url, type) => {
+                    setForm((f) => ({
+                      ...f,
+                      media_url: url,
+                      media_type: type,
+                      image_duration:
+                        type === "image" ? f.image_duration : null,
+                      media_play_count:
+                        type === "audio" || type === "video"
+                          ? f.media_play_count
+                          : null,
+                      show_question_first: url ? f.show_question_first : false,
+                    }));
+                  }}
+                  extra={
+                    hasMedia && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <label className="flex items-center gap-1.5 cursor-pointer select-none bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl px-2.5 py-1 text-slate-700 hover:bg-slate-100 transition-colors">
                           <input
-                            type="number"
-                            min={1}
-                            max={600}
-                            value={form.image_duration ?? ""}
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              set(
-                                "image_duration",
-                                raw === "" ? null : Math.max(1, Number(raw)),
-                              );
-                            }}
-                            className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-center font-bold text-slate-700 focus:border-cyan-500 outline-none transition-colors"
-                            placeholder="ثواني"
-                            title="مدة عرض الصورة بالثواني (فاضية = بدون توقيت)"
+                            type="checkbox"
+                            checked={Boolean(form.show_question_first)}
+                            onChange={(e) =>
+                              set("show_question_first", e.target.checked)
+                            }
+                            className="rounded text-cyan-600 focus:ring-cyan-500 h-3.5 w-3.5 border-slate-300 cursor-pointer"
                           />
-                        </div>
-                      )}
-                      {isPlayableMedia && (
-                        <div className="flex items-center gap-1.5 bg-cyan-50/70 border border-cyan-100 rounded-xl px-2.5 py-1">
-                          <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1 whitespace-nowrap">
-                            <Repeat className="h-3.5 w-3.5 text-cyan-600" />
-                            مرات التشغيل:
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={20}
-                            value={form.media_play_count ?? ""}
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              set(
-                                "media_play_count",
-                                raw === "" ? null : Math.max(1, Number(raw)),
-                              );
-                            }}
-                            className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-center font-bold text-slate-700 focus:border-cyan-500 outline-none transition-colors"
-                            placeholder="بدون حد"
-                            title="عدد مرات التشغيل (فاضية = بدون حد)"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )
-                }
-              />
+                          <span className="text-xs font-bold whitespace-nowrap">
+                            ظهور السؤال أولاً
+                          </span>
+                        </label>
+                        {isImageMedia && (
+                          <div className="flex items-center gap-1.5 bg-cyan-50/70 border border-cyan-100 rounded-xl px-2.5 py-1">
+                            <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1 whitespace-nowrap">
+                              <Timer className="h-3.5 w-3.5 text-cyan-600" />
+                              مدة العرض:
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              max={600}
+                              value={form.image_duration ?? ""}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                set(
+                                  "image_duration",
+                                  raw === "" ? null : Math.max(1, Number(raw)),
+                                );
+                              }}
+                              className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-center font-bold text-slate-700 focus:border-cyan-500 outline-none transition-colors"
+                              placeholder="ثواني"
+                              title="مدة عرض الصورة بالثواني (فاضية = بدون توقيت)"
+                            />
+                          </div>
+                        )}
+                        {isPlayableMedia && (
+                          <div className="flex items-center gap-1.5 bg-cyan-50/70 border border-cyan-100 rounded-xl px-2.5 py-1">
+                            <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1 whitespace-nowrap">
+                              <Repeat className="h-3.5 w-3.5 text-cyan-600" />
+                              مرات التشغيل:
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              max={20}
+                              value={form.media_play_count ?? ""}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                set(
+                                  "media_play_count",
+                                  raw === "" ? null : Math.max(1, Number(raw)),
+                                );
+                              }}
+                              className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-center font-bold text-slate-700 focus:border-cyan-500 outline-none transition-colors"
+                              placeholder="بدون حد"
+                              title="عدد مرات التشغيل (فاضية = بدون حد)"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
@@ -357,7 +539,9 @@ export default function QuestionModal({
                       onChange={(e) => set("is_active", e.target.checked)}
                       className="rounded text-cyan-600 focus:ring-cyan-500 h-4 w-4 border-slate-300 cursor-pointer"
                     />
-                    <span className="text-sm font-bold text-slate-700">مفعّل</span>
+                    <span className="text-sm font-bold text-slate-700">
+                      مفعّل
+                    </span>
                   </label>
                 }
               />
@@ -369,11 +553,21 @@ export default function QuestionModal({
         <div className="flex gap-2 p-6 border-t border-slate-100 bg-slate-50 rounded-b-3xl">
           <button
             type="button"
-            onClick={() => onSave(form)}
+            onClick={() => {
+              const finalForm = {
+                ...form,
+                question_text: isWlaKelma
+                  ? form.question_text?.trim() ||
+                    form.answer_text?.trim() ||
+                    "ولا كلمة"
+                  : form.question_text.trim(),
+              };
+              onSave(finalForm);
+            }}
             disabled={
               busy ||
               !form.category_id ||
-              !form.question_text.trim() ||
+              (!isWlaKelma && !form.question_text.trim()) ||
               !form.answer_text.trim() ||
               positionTaken ||
               isDuplicateQuestion

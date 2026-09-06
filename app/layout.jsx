@@ -8,6 +8,14 @@ const cairo = Cairo({
   variable: "--font-cairo",
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  minimumScale: 0.5,
+  maximumScale: 5,
+  userScalable: true,
+};
+
 export const metadata = {
   title: "حيلهم بينهم - اللعبة الاستراتيجية الثقافية",
   description:

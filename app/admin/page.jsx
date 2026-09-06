@@ -85,6 +85,8 @@ export default function AdminPage() {
   const [qModal, setQModal] = useState(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [difficultyEditFor, setDifficultyEditFor] = useState(null); // question id with the inline dropdown open
+  const [statusEditFor, setStatusEditFor] = useState(null); // question id with inline status dropdown open
+  const [categoryStatusEditFor, setCategoryStatusEditFor] = useState(null); // category id with inline status dropdown open
 
   const notify = useCallback(
     (msg, type = "success") => setToast({ msg, type }),
@@ -292,20 +294,25 @@ export default function AdminPage() {
   };
 
   const saveQuestion = async (form) => {
+    const targetCat = categories.find((c) => String(c.id) === String(form.category_id));
+    const isWlaKelma = targetCat?.name === "ولا كلمة" || String(form.category_id) === "wla_kelma";
+
+    const qText = form.question_text?.trim() || (isWlaKelma ? form.answer_text?.trim() || "ولا كلمة" : "");
+    const aText = form.answer_text?.trim() || "";
+
     const isDup = questions.some(
-      (q) =>
-        q.category_id === form.category_id &&
-        q.id !== form.id &&
-        q.question_text?.trim().toLowerCase() ===
-          form.question_text?.trim().toLowerCase() &&
-        (q.answer_text?.trim().toLowerCase() || "") ===
-          (form.answer_text?.trim().toLowerCase() || "") &&
-        (q.answer_image_url?.trim() || "") ===
-          (form.answer_image_url?.trim() || ""),
+      (q) => {
+        if (q.category_id !== form.category_id || q.id === form.id) return false;
+        const sameAnswer = (q.answer_text?.trim().toLowerCase() || "") === aText.toLowerCase();
+        const sameAnswerImage = (q.answer_image_url?.trim() || "") === (form.answer_image_url?.trim() || "");
+        if (isWlaKelma) return sameAnswer && sameAnswerImage;
+        const sameText = q.question_text?.trim().toLowerCase() === qText.toLowerCase();
+        return sameText && sameAnswer && sameAnswerImage;
+      }
     );
     if (isDup) {
       notify(
-        "هالسؤال موجود من قبل بنفس التصنيف، ما تقدر تضيفه مرة ثانية!",
+        isWlaKelma ? "هذا العمل موجود مسبقاً في نفس الفئة!" : "هالسؤال موجود من قبل بنفس التصنيف، ما تقدر تضيفه مرة ثانية!",
         "error",
       );
       return;
@@ -318,36 +325,57 @@ export default function AdminPage() {
         ? Boolean(form.show_question_first)
         : false;
 
-      const rpcParams = {
-        p_id: form.id || null,
-        p_category_id: form.category_id,
-        p_question_text: form.question_text.trim(),
-        p_answer_text: form.answer_text.trim(),
-        p_difficulty: form.difficulty,
-        p_strikes: DIFFICULTY_STRIKES[form.difficulty],
-        p_position: form.position || 1,
-        p_is_active: form.is_active,
-        p_media_url: mediaUrl,
-        p_media_type: mediaType,
-        p_image_duration:
+      const questionPayload = {
+        id: form.id || null,
+        category_id: form.category_id,
+        question_text: qText,
+        answer_text: aText,
+        difficulty: form.difficulty,
+        strikes: DIFFICULTY_STRIKES[form.difficulty],
+        position: form.position || 1,
+        is_active: form.is_active,
+        media_url: mediaUrl,
+        media_type: mediaType,
+        image_duration:
           mediaType === "image"
             ? normalizePositiveInt(form.image_duration, 600)
             : null,
-        p_media_play_count:
+        media_play_count:
           mediaType === "audio" || mediaType === "video"
             ? normalizePositiveInt(form.media_play_count, 20)
             : null,
-        p_answer_image_url: form.answer_image_url?.trim() || null,
-        p_show_question_first: showQuestionFirst,
+        answer_image_url: form.answer_image_url?.trim() || null,
       };
 
-      let { error } = await supabase.rpc("admin_save_question", rpcParams);
-      if (error && error.message?.includes("p_show_question_first")) {
-        delete rpcParams.p_show_question_first;
-        const retry = await supabase.rpc("admin_save_question", rpcParams);
-        error = retry.error;
+      try {
+        await callAdminApi("/api/admin/questions", "POST", questionPayload);
+      } catch (apiErr) {
+        // Fallback to RPC if API route fails
+        const rpcParams = {
+          p_id: form.id || null,
+          p_category_id: form.category_id,
+          p_question_text: qText,
+          p_answer_text: aText,
+          p_difficulty: form.difficulty,
+          p_strikes: DIFFICULTY_STRIKES[form.difficulty],
+          p_position: form.position || 1,
+          p_is_active: form.is_active,
+          p_media_url: mediaUrl,
+          p_media_type: mediaType,
+          p_image_duration: questionPayload.image_duration,
+          p_media_play_count: questionPayload.media_play_count,
+          p_answer_image_url: questionPayload.answer_image_url,
+          p_show_question_first: showQuestionFirst,
+        };
+
+        let { error } = await supabase.rpc("admin_save_question", rpcParams);
+        if (error && error.message?.includes("p_show_question_first")) {
+          delete rpcParams.p_show_question_first;
+          const retry = await supabase.rpc("admin_save_question", rpcParams);
+          error = retry.error;
+        }
+        if (error) throw error;
       }
-      if (error) throw error;
       notify(form.id ? "تم تحديث السؤال." : "تم إضافة السؤال.");
       await loadQuestions();
       setQModal(null);
@@ -364,6 +392,109 @@ export default function AdminPage() {
     setDifficultyEditFor(null);
     if (newDifficulty === question.difficulty) return;
     await saveQuestion({ ...question, difficulty: newDifficulty });
+  };
+
+  // Quick inline status change (مفعّل / معطّل) from the table row's dropdown
+  const handleInlineStatusChange = async (question, newStatus) => {
+    setStatusEditFor(null);
+    if (newStatus === question.is_active) return;
+    await saveQuestion({ ...question, is_active: newStatus });
+  };
+
+  const handleInlineCategoryStatusChange = async (category, newStatus) => {
+    setCategoryStatusEditFor(null);
+    if (newStatus === category.is_active) return;
+    await saveCategory({ ...category, is_active: newStatus });
+  };
+
+  // ── Bulk Actions
+  const handleBulkQuestions = async ({ action, ids, category_id }) => {
+    if (!ids || ids.length === 0) return;
+    setBusy(true);
+    try {
+      if (action === "delete") {
+        await callAdminApi("/api/admin/questions", "DELETE", { ids });
+        notify(`تم حذف ${ids.length} سؤال بنجاح.`);
+      } else if (action === "activate") {
+        await callAdminApi("/api/admin/questions", "PATCH", {
+          ids,
+          action: "activate",
+        });
+        notify(`تم تفعيل ${ids.length} سؤال بنجاح.`);
+      } else if (action === "deactivate") {
+        await callAdminApi("/api/admin/questions", "PATCH", {
+          ids,
+          action: "deactivate",
+        });
+        notify(`تم تعطيل ${ids.length} سؤال بنجاح.`);
+      } else if (action === "change_category") {
+        await callAdminApi("/api/admin/questions", "PATCH", {
+          ids,
+          action: "change_category",
+          category_id,
+        });
+        notify(`تم نقل ${ids.length} سؤال إلى الفئة بنجاح.`);
+      }
+      await loadQuestions();
+    } catch (err) {
+      notify(err.message, "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleBulkCategories = async ({ action, ids, group_id }) => {
+    if (!ids || ids.length === 0) return;
+    setBusy(true);
+    try {
+      if (action === "delete") {
+        await callAdminApi("/api/admin/categories", "DELETE", { ids });
+        notify(`تم حذف ${ids.length} فئة أسئلة بنجاح.`);
+        await Promise.all([loadCategories(), loadQuestions()]);
+      } else if (action === "activate") {
+        await callAdminApi("/api/admin/categories", "PATCH", {
+          ids,
+          action: "activate",
+        });
+        notify(`تم تفعيل ${ids.length} فئة بنجاح.`);
+        await loadCategories();
+      } else if (action === "deactivate") {
+        await callAdminApi("/api/admin/categories", "PATCH", {
+          ids,
+          action: "deactivate",
+        });
+        notify(`تم تعطيل ${ids.length} فئة بنجاح.`);
+        await loadCategories();
+      } else if (action === "assign_group") {
+        await callAdminApi("/api/admin/categories", "PATCH", {
+          ids,
+          action: "assign_group",
+          group_id,
+        });
+        notify(`تم تعيين التصنيف لـ ${ids.length} فئة بنجاح.`);
+        await loadCategories();
+      }
+    } catch (err) {
+      notify(err.message, "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleBulkGroups = async ({ action, ids }) => {
+    if (!ids || ids.length === 0) return;
+    setBusy(true);
+    try {
+      if (action === "delete") {
+        await callAdminApi("/api/admin/groups", "DELETE", { ids });
+        notify(`تم حذف ${ids.length} تصنيف بنجاح.`);
+        await Promise.all([loadGroups(), loadCategories()]);
+      }
+    } catch (err) {
+      notify(err.message, "error");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const deleteQuestion = async (id) => {
@@ -535,6 +666,10 @@ export default function AdminPage() {
               difficultyEditFor={difficultyEditFor}
               setDifficultyEditFor={setDifficultyEditFor}
               onInlineDifficultyChange={handleInlineDifficultyChange}
+              statusEditFor={statusEditFor}
+              setStatusEditFor={setStatusEditFor}
+              onInlineStatusChange={handleInlineStatusChange}
+              onBulkAction={handleBulkQuestions}
             />
           )}
 
@@ -545,6 +680,7 @@ export default function AdminPage() {
               busy={busy}
               setGroupModal={setGroupModal}
               deleteGroup={deleteGroup}
+              onBulkAction={handleBulkGroups}
             />
           )}
 
@@ -560,6 +696,10 @@ export default function AdminPage() {
               setSearchQuery={setSearchQuery}
               setCatModal={setCatModal}
               deleteCategory={deleteCategory}
+              statusEditFor={categoryStatusEditFor}
+              setStatusEditFor={setCategoryStatusEditFor}
+              onInlineStatusChange={handleInlineCategoryStatusChange}
+              onBulkAction={handleBulkCategories}
             />
           )}
 

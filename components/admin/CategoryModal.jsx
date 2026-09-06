@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { Loader2, Save, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, Save, X } from "lucide-react";
 import { CategoryImageUpload } from "./MediaUploaders";
 
 export default function CategoryModal({
@@ -34,11 +34,27 @@ export default function CategoryModal({
   });
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const orderTaken = (categories || []).some(
-    (c) => c.sort_order === form.sort_order && c.id !== form.id,
+  const usedOrders = new Set(
+    (categories || []).filter((c) => c.id !== form.id).map((c) => c.sort_order),
   );
+  const orderTaken = usedOrders.has(form.sort_order);
   const orderTooLow = form.sort_order < 1;
   const isMissingGroup = !form.group_id || !form.group_id.trim();
+
+  const getNextFreeOrder = (current) => {
+    let next = Math.max(1, (Number(current) || 0) + 1);
+    while (usedOrders.has(next)) next += 1;
+    return next;
+  };
+
+  const getPrevFreeOrder = (current) => {
+    let prev = (Number(current) || 1) - 1;
+    while (prev >= 1 && usedOrders.has(prev)) prev -= 1;
+    return prev >= 1 ? prev : current;
+  };
+
+  const handleStepUp = () => set("sort_order", getNextFreeOrder(form.sort_order));
+  const handleStepDown = () => set("sort_order", getPrevFreeOrder(form.sort_order));
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -139,16 +155,54 @@ export default function CategoryModal({
 
           <div className="grid grid-cols-2 gap-3 items-start">
             <div>
-              <label className="text-[11px] font-bold text-slate-500">
-                الترتيب
-              </label>
-              <input
-                type="number"
-                value={form.sort_order}
-                min={1}
-                onChange={(e) => set("sort_order", Number(e.target.value))}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-cyan-500 outline-none transition-colors"
-              />
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-slate-500">
+                  الترتيب
+                </label>
+                <span className="text-[10px] text-slate-400 font-semibold">
+                  (الأسهم تتنقل بين الأرقام المتاحة)
+                </span>
+              </div>
+              <div className="relative mt-1 flex items-center">
+                <input
+                  type="number"
+                  value={form.sort_order}
+                  min={1}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      handleStepUp();
+                    } else if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      handleStepDown();
+                    }
+                  }}
+                  onChange={(e) => set("sort_order", Number(e.target.value))}
+                  className={`w-full rounded-xl border px-3 py-2 pl-16 text-sm font-bold transition-colors outline-none ${
+                    orderTaken || orderTooLow
+                      ? "border-rose-400 bg-rose-50/40 text-rose-900 focus:border-rose-500"
+                      : "border-slate-200 focus:border-cyan-500 text-slate-800"
+                  }`}
+                />
+                <div className="absolute left-1.5 flex items-center gap-1">
+                  <button
+                    type="button"
+                    title="الترتيب المتاح التالي"
+                    onClick={handleStepUp}
+                    className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-cyan-50 hover:text-cyan-700 text-slate-600 flex items-center justify-center transition active:scale-95 cursor-pointer"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    title="الترتيب المتاح السابق"
+                    onClick={handleStepDown}
+                    className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-cyan-50 hover:text-cyan-700 text-slate-600 flex items-center justify-center transition active:scale-95 cursor-pointer"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
               <p className="mt-1 text-[10px] text-slate-400">
                 ترتيب الظهور (الأصغر أولاً).
               </p>
@@ -158,9 +212,16 @@ export default function CategoryModal({
                 </p>
               )}
               {!orderTooLow && orderTaken && (
-                <p className="mt-1 text-[10px] font-bold text-rose-600">
-                  الترتيب ده متاخد بتصنيف تاني.
-                </p>
+                <div className="mt-1 flex flex-col gap-1 text-[10px] font-bold text-rose-600">
+                  <span>هذا الترتيب مستخدم بالفعل في فئة أخرى.</span>
+                  <button
+                    type="button"
+                    onClick={handleStepUp}
+                    className="text-cyan-700 hover:underline cursor-pointer text-right inline-flex items-center gap-1 font-black"
+                  >
+                    ⚡ اضغط هنا للانتقال لأقرب ترتيب متاح (#{getNextFreeOrder(form.sort_order)})
+                  </button>
+                </div>
               )}
             </div>
 

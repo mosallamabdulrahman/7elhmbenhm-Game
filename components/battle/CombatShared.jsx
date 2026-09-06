@@ -10,6 +10,7 @@ import {
   Star,
   Trophy,
   Volume2,
+  X,
   XCircle,
 } from "lucide-react";
 
@@ -54,7 +55,7 @@ export const DIFFICULTY_STRIKE_LABEL = {
 //   • mediaPlayCount   — allow audio/video to be played only N times total.
 // Both are null/0 by default, which means "no limit" and keeps the old
 // behaviour for every question saved before these fields existed.
-function TimedImage({ mediaUrl, durationSeconds }) {
+function TimedImage({ mediaUrl, durationSeconds, onImageClick }) {
   const [hidden, setHidden] = useState(false);
 
   // The parent keys this component by url+duration, so a fresh mount already
@@ -84,8 +85,10 @@ function TimedImage({ mediaUrl, durationSeconds }) {
       <img
         src={mediaUrl}
         alt="وسائط السؤال"
-        className="w-full max-h-72 object-contain"
+        className="w-full max-h-72 object-contain rounded-xl cursor-pointer hover:opacity-90 active:scale-[0.99] transition shadow-sm"
         loading="lazy"
+        onClick={() => onImageClick?.(mediaUrl)}
+        title="اضغط لتكبير الصورة"
       />
       {durationSeconds > 0 && (
         <p className="mt-1 text-[10px] font-bold text-slate-400">
@@ -179,6 +182,7 @@ export function MediaPlayer({
   mediaType,
   imageDuration = null,
   mediaPlayCount = null,
+  onImageClick = null,
 }) {
   if (!mediaUrl || !mediaType) return null;
 
@@ -190,6 +194,7 @@ export function MediaPlayer({
         key={`${mediaUrl}|${imageDuration || 0}`}
         mediaUrl={mediaUrl}
         durationSeconds={imageDuration || 0}
+        onImageClick={onImageClick}
       />
     );
   }
@@ -737,13 +742,13 @@ export function CombatEventModal({ event, onClose, autoCloseMs = 2000 }) {
 
   return (
     <div
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/75 p-4 dir-rtl cursor-pointer"
+      className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/75 p-4 dir-rtl cursor-pointer overflow-y-auto"
       onClick={onClose}
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl cursor-default"
+        className="w-full max-w-sm max-h-[92dvh] overflow-y-auto rounded-3xl bg-white p-7 text-center shadow-2xl cursor-default"
         onClick={(e) => e.stopPropagation()}
       >
         {isHit ? (
@@ -791,3 +796,36 @@ export function CombatEventModal({ event, onClose, autoCloseMs = 2000 }) {
     </div>
   );
 }
+
+export function ImageModal({ imageUrl, onClose }) {
+  if (!imageUrl) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[500] flex items-center justify-center bg-black/85 p-3 sm:p-6 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="relative max-w-[95vw] max-h-[92vh] flex items-center justify-center"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute -top-3 -right-3 sm:-top-4 sm:-right-4 z-10 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white text-slate-900 hover:bg-slate-100 flex items-center justify-center shadow-2xl transition cursor-pointer border border-slate-300 active:scale-95"
+          title="إغلاق الصورة"
+          aria-label="إغلاق الصورة"
+        >
+          <X className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
+        </button>
+
+        <img
+          src={imageUrl}
+          alt="معاينة الصورة"
+          className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl select-none"
+        />
+      </div>
+    </div>
+  );
+}
+

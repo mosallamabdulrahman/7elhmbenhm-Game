@@ -29,3 +29,47 @@ export async function GET(request) {
     );
   }
 }
+
+// DELETE /api/admin/groups — bulk delete groups
+export async function DELETE(request) {
+  try {
+    const auth = await requireAdmin(request);
+    if (auth.error) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const { ids } = body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json(
+        { error: "لم يتم تحديد أي تصنيفات للحذف." },
+        { status: 400 },
+      );
+    }
+
+    const supabaseAdmin = getSupabaseAdmin();
+
+    // 1. Unlink categories that belong to these groups
+    await supabaseAdmin
+      .from("question_categories")
+      .update({ group_id: null })
+      .in("group_id", ids);
+
+    // 2. Delete groups
+    const { error } = await supabaseAdmin
+      .from("category_groups")
+      .delete()
+      .in("id", ids);
+
+    if (error) throw error;
+
+    return NextResponse.json({ ok: true, count: ids.length });
+  } catch (err) {
+    console.error("DELETE /api/admin/groups failed:", err);
+    return NextResponse.json(
+      { error: err?.message || "فشل الحذف." },
+      { status: 500 },
+    );
+  }
+}

@@ -84,6 +84,7 @@ function AdminLoginForm({ onSuccess }) {
 
       const email = lookup?.[0]?.matched_email;
       if (lookupError || !email) {
+        if (lookupError) console.error("lookup_account error:", lookupError);
         setError("بيانات الدخول غلط.");
         return;
       }
@@ -92,6 +93,7 @@ function AdminLoginForm({ onSuccess }) {
         await supabase.auth.signInWithPassword({ email, password });
 
       if (signInError || !signInData?.session) {
+        if (signInError) console.error("signInWithPassword error:", signInError);
         setError("بيانات الدخول غلط.");
         return;
       }

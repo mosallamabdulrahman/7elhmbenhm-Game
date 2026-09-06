@@ -566,10 +566,30 @@ function BattlePageInner() {
         .select("*")
         .eq("room_id", roomId)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(100);
 
       if (eventError) throw eventError;
-      setCombatEvents(eventData || []);
+
+      // Functional merge: Never discard already-known/optimistic strikes on stale Safari re-fetches
+      setCombatEvents((prev) => {
+        const map = new Map();
+        (prev || []).forEach((e) => {
+          if (e) {
+            const key = e.id || `strike-${e.target_team_index}-${e.cell_index}`;
+            map.set(key, e);
+          }
+        });
+        (eventData || []).forEach((e) => {
+          if (e && e.id) {
+            const optKey = `strike-${e.target_team_index}-${e.cell_index}`;
+            map.delete(optKey);
+            map.set(e.id, e);
+          }
+        });
+        return Array.from(map.values())
+          .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+          .slice(0, 100);
+      });
     } catch (err) {
       console.error(err);
       setDbError(err.message || "ما قدرنا نحمل بيانات حيلهم بينهم.");
@@ -656,9 +676,24 @@ function BattlePageInner() {
           filter: `room_id=eq.${roomId}`,
         },
         (payload) => {
-          setCombatEvents((previous) =>
-            [payload.new, ...previous].slice(0, 50),
-          );
+          const newEvent = payload.new;
+          setCombatEvents((previous) => {
+            // Deduplicate by ID and clean up any optimistic placeholder for the same cell
+            const filtered = (previous || []).filter((e) => {
+              if (e.id === newEvent.id) return false;
+              if (
+                e.event_type === "strike" &&
+                newEvent.event_type === "strike" &&
+                e.target_team_index === newEvent.target_team_index &&
+                e.cell_index === newEvent.cell_index &&
+                (e.is_optimistic || e.result === "pending")
+              ) {
+                return false;
+              }
+              return true;
+            });
+            return [newEvent, ...filtered].slice(0, 100);
+          });
           if (payload.new.event_type === "strike") {
             setLatestCombatEvent(payload.new);
           }
@@ -1093,13 +1128,98 @@ function BattlePageInner() {
   // called it out
   const handleStrike = (attackerTeamIndex, cellIndex) =>
     runAction(async () => {
-      const { error } = await supabase.rpc("execute_strike", {
-        p_room_id: roomId,
-        p_attacker_team_index: attackerTeamIndex,
-        p_cell_index: cellIndex,
+      const targetTeam = teams.find((t) => t.team_index !== attackerTeamIndex);
+      const targetTeamIndex = targetTeam
+        ? targetTeam.team_index
+        : attackerTeamIndex === 1
+          ? 2
+          : 1;
+
+      // 1. Optimistic event: immediately lock and mark the cell locally
+      const tempId = `optimistic-strike-${targetTeamIndex}-${cellIndex}`;
+      const optimisticEvent = {
+        id: tempId,
+        room_id: roomId,
+        event_type: "strike",
+        actor_team_index: attackerTeamIndex,
+        target_team_index: targetTeamIndex,
+        cell_index: cellIndex,
+        result: "pending",
+        unit_type: null,
+        points_delta: 0,
+        is_optimistic: true,
+        created_at: new Date().toISOString(),
+      };
+
+      setCombatEvents((prev) => {
+        if (
+          (prev || []).some(
+            (e) =>
+              e.target_team_index === targetTeamIndex &&
+              e.cell_index === cellIndex,
+          )
+        ) {
+          return prev;
+        }
+        return [optimisticEvent, ...(prev || [])];
       });
-      if (error) throw error;
-      await finalizeRoomIfComplete();
+
+      // 2. Optimistically decrement attacker strikes
+      setTeams((prev) =>
+        prev.map((t) =>
+          t.team_index === attackerTeamIndex
+            ? {
+                ...t,
+                available_strikes: Math.max(0, (t.available_strikes || 0) - 1),
+              }
+            : t,
+        ),
+      );
+
+      try {
+        const { data: serverEvent, error } = await supabase.rpc(
+          "execute_strike",
+          {
+            p_room_id: roomId,
+            p_attacker_team_index: attackerTeamIndex,
+            p_cell_index: cellIndex,
+          },
+        );
+
+        if (error) {
+          // If error is unique constraint violation, cell is already struck in DB: keep struck state
+          if (
+            error.message &&
+            error.message.includes("uq_combat_events_one_strike_per_cell")
+          ) {
+            console.warn("Cell was already struck in DB, keeping struck state.");
+            return;
+          }
+          // Genuine failure: rollback optimistic event
+          setCombatEvents((prev) =>
+            (prev || []).filter((e) => e.id !== tempId),
+          );
+          throw error;
+        }
+
+        // Server returns the created or existing event jsonb directly
+        if (serverEvent && serverEvent.id) {
+          setCombatEvents((prev) => {
+            const filtered = (prev || []).filter(
+              (e) => e.id !== tempId && e.id !== serverEvent.id,
+            );
+            return [serverEvent, ...filtered].slice(0, 100);
+          });
+          setLatestCombatEvent(serverEvent);
+        }
+
+        await finalizeRoomIfComplete();
+      } catch (err) {
+        setCombatEvents((prev) =>
+          (prev || []).filter((e) => e.id !== tempId),
+        );
+        throw err;
+      }
     });
 
   // Referee activates a team's tool on their behalf
@@ -1736,7 +1856,7 @@ function BattlePageInner() {
     }
 
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col dir-rtl pb-16">
+      <div className="min-h-screen bg-slate-50 flex flex-col dir-rtl pb-16 overflow-x-auto overflow-y-auto">
         {/* Floating alerts */}
         <AnimatePresence>
           {alertMsg && (
@@ -1798,7 +1918,7 @@ function BattlePageInner() {
         <main className="max-w-[85rem] mx-auto px-4 mt-8 flex-grow grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
           {/* 6x6 Army Board Panel (Task 11) */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-md relative overflow-hidden">
+            <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-md relative overflow-visible">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-6">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">
@@ -2005,7 +2125,7 @@ function BattlePageInner() {
 
   // D. DEFAULT SANDBOX GAME OR FALLBACK (Play offline Sandbox)
   return (
-    <div className="min-h-screen bg-slate-50 py-20 px-4 flex flex-col justify-center items-center dir-rtl">
+    <div className="min-h-screen bg-slate-50 py-20 px-4 flex flex-col justify-center items-center dir-rtl overflow-x-auto overflow-y-auto">
       <div className="max-w-md w-full bg-white p-8 rounded-3xl border border-slate-200 shadow-2xl text-center">
         <div className="bg-gradient-to-tr from-cyan-600 to-sky-500 text-white p-4 rounded-2xl inline-block mb-6 shadow-md animate-bounce">
           <Gamepad2 className="w-10 h-10" />

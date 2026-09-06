@@ -17,7 +17,12 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { FinishedCelebration, MediaPlayer, QuestionGrid } from "./CombatShared";
+import {
+  FinishedCelebration,
+  ImageModal,
+  MediaPlayer,
+  QuestionGrid,
+} from "./CombatShared";
 import {
   TACTICAL_TOOL_DETAILS,
   UNIT_IMAGES,
@@ -25,12 +30,24 @@ import {
 } from "@/lib/game-data";
 import GameLogo from "@/components/common/GameLogo";
 import Image from "next/image";
+import { QRCodeSVG } from "qrcode.react";
 
 // Shared cell look for both the strike board and the radar board, so a
 // board reads exactly the same whichever modal shows it. `result` (from an
 // actual strike) always wins over a radar `reveal` — radar only fills in
 // cells that haven't actually been struck yet, and never gets the ✕ mark.
 function getCombatCellVisual({ result, unit, revealed, canClick }) {
+  if (result === "pending") {
+    return {
+      className:
+        "border-2 border-amber-400 bg-amber-500/20 text-amber-300 animate-pulse pointer-events-none",
+      content: (
+        <span className="leading-none flex items-center justify-center font-bold text-sm text-amber-400">
+          ⏳
+        </span>
+      ),
+    };
+  }
   if (result === "hit") {
     return {
       className: "border-2 border-rose-500 bg-rose-100 text-rose-950 shadow-sm",
@@ -579,13 +596,13 @@ function BoardModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/80 p-4 dir-rtl"
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/80 p-4 dir-rtl overflow-y-auto"
       onClick={dismissible ? onClose : undefined}
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.92 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"
+        className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
@@ -616,13 +633,13 @@ function BoardModal({
 function ConfirmModal({ title, message, confirmLabel, onConfirm, onCancel }) {
   return (
     <div
-      className="fixed inset-0 z-[400] flex items-center justify-center bg-slate-950/70 p-4 dir-rtl"
+      className="fixed inset-0 z-[400] flex items-center justify-center bg-slate-950/70 p-4 dir-rtl overflow-y-auto"
       onClick={onCancel}
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.92 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl"
+        className="w-full max-w-sm max-h-[92dvh] overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
@@ -692,7 +709,9 @@ export function RefereeGameScreen({
   const [mediaRevealed, setMediaRevealed] = useState(false);
   const [radarModalTeam, setRadarModalTeam] = useState(null);
   const [strikeModalTeam, setStrikeModalTeam] = useState(null);
+  const [locallyPendingStrikes, setLocallyPendingStrikes] = useState(new Set());
   const [confirmAction, setConfirmAction] = useState(null); // null | "end" | "exit"
+  const [expandedImage, setExpandedImage] = useState(null);
 
   const activeQuestion = questions.find(
     (question) => question.id === room.active_question_id,
@@ -725,9 +744,11 @@ export function RefereeGameScreen({
   );
   if (teamsWithStrikes.length > 0 && !strikeModalTeamStillPending) {
     if (strikeModalTeam !== teamsWithStrikes[0].team_index) {
+      setLocallyPendingStrikes(new Set());
       setStrikeModalTeam(teamsWithStrikes[0].team_index);
     }
   } else if (teamsWithStrikes.length === 0 && strikeModalTeam !== null) {
+    setLocallyPendingStrikes(new Set());
     setStrikeModalTeam(null);
   }
 
@@ -795,7 +816,7 @@ export function RefereeGameScreen({
     : new Map();
 
   return (
-    <div className="h-[100dvh] md:min-h-screen md:h-auto max-h-[100dvh] md:max-h-none bg-slate-100 flex flex-col justify-between overflow-hidden md:overflow-visible dir-rtl">
+    <div className="min-h-[100dvh] bg-slate-100 flex flex-col justify-between overflow-x-auto overflow-y-auto dir-rtl">
       <header className="bg-gradient-to-l from-cyan-800 via-cyan-700 to-cyan-600 shadow-lg shrink-0">
         {/* Mobile Header (< md) matching reference screenshot layout */}
         <div className="md:hidden px-3 py-2 flex flex-col items-center gap-1.5 w-full">
@@ -930,7 +951,7 @@ export function RefereeGameScreen({
         </div>
       </header>
 
-      <main className="w-full max-w-[98rem] mx-auto px-1.5 xs:px-2 sm:px-4 md:px-6 my-auto py-2 sm:py-4 flex-1 flex flex-col justify-center min-h-0 overflow-hidden">
+      <main className="w-full max-w-[98rem] mx-auto px-1.5 xs:px-2 sm:px-4 md:px-6 my-auto py-2 sm:py-4 flex-1 flex flex-col justify-center min-h-0">
         {room.status === "finished" ? (
           <FinishedCelebration room={room} teams={teams} onExit={onExit} />
         ) : step === "grid" ? (
@@ -954,7 +975,7 @@ export function RefereeGameScreen({
             </motion.div>
           </AnimatePresence>
         ) : (
-          <div className="flex flex-col-reverse md:grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-8 lg:gap-12 mt-0 sm:mt-6">
+          <div className="flex flex-col-reverse md:grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-8 lg:gap-12 mt-6">
             {team1 && team2 && (
               <div className="md:col-span-1 w-full grid grid-cols-2 md:grid-cols-1 gap-4">
                 <TeamToolsCard
@@ -998,36 +1019,94 @@ export function RefereeGameScreen({
 
                     {/* Top Right: Points badge */}
                     <span className="absolute -top-4 sm:-top-5 right-3 sm:right-6 md:right-8 z-20 rounded-xl bg-slate-950 px-3 py-1.5 sm:px-5 sm:py-2 text-xs sm:text-sm md:text-base font-bold text-white shadow-lg">
-                      {activeQuestion.points} نقطة
+                      {activeQuestion.points ||
+                        (activeQuestion.difficulty === "easy"
+                          ? 200
+                          : activeQuestion.difficulty === "medium"
+                            ? 400
+                            : 600)}{" "}
+                      نقطة
                     </span>
 
-                    <h2 className="text-lg sm:text-2xl md:text-3xl font-bold text-slate-950 leading-relaxed px-2">
-                      {activeQuestion.question_text}
-                    </h2>
-                    {activeQuestion.media_url && (
-                      activeQuestion.show_question_first && !mediaRevealed ? (
-                        <div className="mt-6 flex flex-col items-center justify-center">
-                          <button
-                            type="button"
-                            onClick={() => setMediaRevealed(true)}
-                            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-500 hover:to-sky-500 active:scale-95 px-6 py-3 text-sm sm:text-base font-bold text-white shadow-lg shadow-cyan-600/25 transition-all duration-200 cursor-pointer"
-                          >
-                            <Play className="h-5 w-5 fill-white" />
-                            <span>عرض الوسائط</span>
-                          </button>
-                          <p className="mt-2 text-xs font-semibold text-slate-400">
-                            (نص السؤال يظهر أولاً — اضغط لعرض الوسائط)
-                          </p>
+                    {activeQuestion.category_name === "ولا كلمة" ||
+                    activeQuestion.category_id === "wla_kelma" ? (
+                      <div className="flex flex-col items-center justify-center w-full py-1 sm:py-3">
+                        {/* Main Interactive Grid: Rules on Right (in RTL), QR on Left */}
+                        <div className="w-full max-w-2xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-10 pb-4">
+                          {/* Rules Pills Stack with Step Number Badges */}
+                          <div className="flex-1 w-full flex flex-col gap-3.5 max-w-md">
+                            <div className="w-full rounded-full bg-white border-2 border-slate-200/90 py-2.5 sm:py-3 pr-11 sm:pr-14 pl-3 sm:pl-5 text-slate-800 font-extrabold text-xs sm:text-sm md:text-base shadow-sm relative flex items-center justify-center text-center">
+                              <span className="leading-snug">اختر شخص غير مكرر لتمثيل فريقك</span>
+                              <div className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#f25c05] text-white font-black text-sm sm:text-base md:text-lg flex items-center justify-center shadow-sm shrink-0">
+                                1
+                              </div>
+                            </div>
+                            <div className="w-full rounded-full bg-white border-2 border-slate-200/90 py-2.5 sm:py-3 pr-11 sm:pr-14 pl-3 sm:pl-5 text-slate-800 font-extrabold text-xs sm:text-sm md:text-base shadow-sm relative flex items-center justify-center text-center">
+                              <span className="leading-snug">هذا الشخص الوحيد المسموح له تصوير الباركود</span>
+                              <div className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#f25c05] text-white font-black text-sm sm:text-base md:text-lg flex items-center justify-center shadow-sm shrink-0">
+                                2
+                              </div>
+                            </div>
+                            <div className="w-full rounded-full bg-white border-2 border-slate-200/90 py-2.5 sm:py-3 pr-11 sm:pr-14 pl-3 sm:pl-5 text-slate-800 font-extrabold text-xs sm:text-sm md:text-base shadow-sm relative flex items-center justify-center text-center">
+                              <span className="leading-snug">بعد تصوير الباركود ورؤية السؤال اضغط جاهز</span>
+                              <div className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#f25c05] text-white font-black text-sm sm:text-base md:text-lg flex items-center justify-center shadow-sm shrink-0">
+                                3
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Circular QR Code Card with Orange Pill Button */}
+                          <div className="relative shrink-0 flex flex-col items-center">
+                            <div className="w-44 h-44 sm:w-52 sm:h-52 rounded-lg bg-white border-4 border-slate-200 shadow-2xl flex items-center justify-center p-4 mb-2">
+                              <QRCodeSVG
+                                value={
+                                  typeof window !== "undefined"
+                                    ? `${window.location.origin}/wlakelma/${activeQuestion.id}`
+                                    : `/wlakelma/${activeQuestion.id}`
+                                }
+                                size={145}
+                                level="M"
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                            <span className="absolute -bottom-3 bg-gradient-to-r from-orange-600 to-amber-500 text-white font-black text-xs sm:text-sm px-8 py-1.5 rounded-full shadow-lg tracking-wide">
+                              السؤال
+                            </span>
+                          </div>
                         </div>
-                      ) : (
-                        <MediaPlayer
-                          key={activeQuestion.id}
-                          mediaUrl={activeQuestion.media_url}
-                          mediaType={activeQuestion.media_type}
-                          imageDuration={activeQuestion.image_duration}
-                          mediaPlayCount={activeQuestion.media_play_count}
-                        />
-                      )
+                      </div>
+                    ) : (
+                      <>
+                        <h2 className="text-lg sm:text-2xl md:text-3xl font-bold text-slate-950 leading-relaxed px-2">
+                          {activeQuestion.question_text}
+                        </h2>
+                        {activeQuestion.media_url &&
+                          (activeQuestion.show_question_first &&
+                          !mediaRevealed ? (
+                            <div className="mt-6 flex flex-col items-center justify-center">
+                              <button
+                                type="button"
+                                onClick={() => setMediaRevealed(true)}
+                                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-500 hover:to-sky-500 active:scale-95 px-6 py-3 text-sm sm:text-base font-bold text-white shadow-lg shadow-cyan-600/25 transition-all duration-200 cursor-pointer"
+                              >
+                                <Play className="h-5 w-5 fill-white" />
+                                <span>عرض الوسائط</span>
+                              </button>
+                              <p className="mt-2 text-xs font-semibold text-slate-400">
+                                (نص السؤال يظهر أولاً — اضغط لعرض الوسائط)
+                              </p>
+                            </div>
+                          ) : (
+                            <MediaPlayer
+                              key={activeQuestion.id}
+                              mediaUrl={activeQuestion.media_url}
+                              mediaType={activeQuestion.media_type}
+                              imageDuration={activeQuestion.image_duration}
+                              mediaPlayCount={activeQuestion.media_play_count}
+                              onImageClick={(url) => setExpandedImage(url)}
+                            />
+                          ))}
+                      </>
                     )}
 
                     {/* Bottom Right: Category badge */}
@@ -1061,7 +1140,9 @@ export function RefereeGameScreen({
                         <img
                           src={answerImageUrl}
                           alt="صورة الإجابة"
-                          className="mt-4 max-h-64 w-full object-contain rounded-xl mx-auto"
+                          className="mt-4 max-h-64 w-full object-contain rounded-xl mx-auto cursor-pointer hover:opacity-90 active:scale-[0.99] transition shadow-sm"
+                          onClick={() => setExpandedImage(answerImageUrl)}
+                          title="اضغط لتكبير الصورة"
                         />
                       )}
                     </div>
@@ -1228,16 +1309,25 @@ export function RefereeGameScreen({
           title={`ضرب خريطة ${strikeTarget.name}`}
           subtitle={`عند ${strikeAttacker.name} ${strikeAttacker.available_strikes} ${strikeAttacker.available_strikes === 1 ? "طقة" : "طقات"} متاحة`}
           dismissible={strikeAttacker.available_strikes <= 0}
-          onClose={() => setStrikeModalTeam(null)}
+          onClose={() => {
+            setLocallyPendingStrikes(new Set());
+            setStrikeModalTeam(null);
+          }}
         >
           <div className="grid grid-cols-6 gap-1.5">
             {Array.from({ length: 36 }, (_, cellIndex) => {
-              const result = strikeCellResults.get(cellIndex);
+              const serverResult = strikeCellResults.get(cellIndex);
+              const isLocallyPending = locallyPendingStrikes.has(cellIndex);
+              const result =
+                serverResult || (isLocallyPending ? "pending" : undefined);
               const hitUnit = strikeCellUnits.get(cellIndex);
               const revealed = !result && strikeRadarRevealMap.has(cellIndex);
               const revealedUnit = strikeRadarRevealMap.get(cellIndex);
               const canClick =
-                !isBusy && !result && strikeAttacker.available_strikes > 0;
+                !isBusy &&
+                !result &&
+                !isLocallyPending &&
+                strikeAttacker.available_strikes > 0;
               const visual = getCombatCellVisual({
                 result,
                 unit: result ? hitUnit : revealedUnit,
@@ -1249,13 +1339,20 @@ export function RefereeGameScreen({
                   key={cellIndex}
                   type="button"
                   disabled={!canClick}
-                  onClick={() => onStrike(strikeModalTeam, cellIndex)}
+                  onClick={() => {
+                    setLocallyPendingStrikes((prev) =>
+                      new Set(prev).add(cellIndex),
+                    );
+                    onStrike(strikeModalTeam, cellIndex);
+                  }}
                   title={
                     result === "hit"
                       ? UNIT_NAMES[hitUnit] || hitUnit || "أصبت"
-                      : revealed
-                        ? "معروف بالرادار — لسا ما انضرب"
-                        : undefined
+                      : result === "pending"
+                        ? "جاري إرسال الضربة..."
+                        : revealed
+                          ? "معروف بالرادار — لسا ما انضرب"
+                          : undefined
                   }
                   className={`relative aspect-square rounded-lg border text-[10px] font-bold transition-all ${visual.className}`}
                 >
@@ -1303,6 +1400,12 @@ export function RefereeGameScreen({
           }}
         />
       )}
+
+      {/* Lightbox Pop-up for Question and Answer Images */}
+      <ImageModal
+        imageUrl={expandedImage}
+        onClose={() => setExpandedImage(null)}
+      />
     </div>
   );
 }

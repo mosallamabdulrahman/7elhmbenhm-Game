@@ -196,12 +196,39 @@ export default function UsersManager({ notify }) {
   const [busy, setBusy] = useState(false);
   const [modal, setModal] = useState(null); // null | {} | user row
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkAction, setBulkAction] = useState("");
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setCurrentUserId(data?.user?.id || null);
     });
   }, []);
+
+  const selectableUsers = users.filter((u) => u.user_id !== currentUserId);
+  const isAllSelected =
+    selectableUsers.length > 0 &&
+    selectableUsers.every((u) => selectedIds.has(u.user_id));
+  const isSomeSelected =
+    !isAllSelected && selectableUsers.some((u) => selectedIds.has(u.user_id));
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(selectableUsers.map((u) => u.user_id)));
+    }
+  };
+
+  const handleToggleSelect = (userId) => {
+    if (userId === currentUserId) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -263,6 +290,26 @@ export default function UsersManager({ notify }) {
     }
   };
 
+  const handleApplyBulkAction = async () => {
+    if (!bulkAction || selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    if (bulkAction === "delete") {
+      if (!window.confirm(`هل أنت متأكد من حذف ${ids.length} مستخدم؟`)) return;
+      setBusy(true);
+      try {
+        await callAdminUsersApi("/api/admin/users", "DELETE", { ids });
+        notify(`تم حذف ${ids.length} مستخدم بنجاح.`);
+        setSelectedIds(new Set());
+        setBulkAction("");
+        await loadUsers();
+      } catch (err) {
+        notify(err.message, "error");
+      } finally {
+        setBusy(false);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
@@ -284,7 +331,7 @@ export default function UsersManager({ notify }) {
         )}
       </AnimatePresence>
 
-      <div className="flex justify-start">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"
           onClick={() => setModal({})}
@@ -293,6 +340,43 @@ export default function UsersManager({ notify }) {
           <Plus className="w-3.5 h-3.5" />
           أضف مستخدم جديد
         </button>
+
+        {/* WordPress-style Bulk Actions Bar */}
+        <div className="flex flex-wrap items-center gap-2 bg-[#f6f7f7] border border-[#ccd0d4] rounded p-1.5 text-[13px]">
+          <select
+            value={bulkAction}
+            onChange={(e) => setBulkAction(e.target.value)}
+            className="border border-[#ccd0d4] bg-white rounded px-2.5 py-1 text-xs font-semibold text-slate-700 outline-none focus:border-[#2271b1] shadow-xs cursor-pointer"
+          >
+            <option value="">إجراءات جماعية</option>
+            <option value="delete">حذف</option>
+          </select>
+
+          <button
+            type="button"
+            disabled={busy || !bulkAction || selectedIds.size === 0}
+            onClick={handleApplyBulkAction}
+            className="bg-[#f6f7f7] border border-[#2271b1] hover:bg-[#2271b1] hover:text-white text-[#2271b1] text-xs font-semibold px-3 py-1 rounded transition shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            تطبيق
+          </button>
+
+          {selectedIds.size > 0 && (
+            <span className="text-xs font-bold text-slate-700 mr-2 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-2xs">
+              تم تحديد {selectedIds.size} من {selectableUsers.length}
+            </span>
+          )}
+
+          {selectedIds.size > 0 && (
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs text-rose-600 hover:text-rose-700 font-semibold cursor-pointer underline mr-auto"
+            >
+              إلغاء التحديد
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
@@ -301,6 +385,18 @@ export default function UsersManager({ notify }) {
           <table className="w-full text-sm">
             <thead className="bg-[#f6f7f7] border-b border-slate-200">
               <tr>
+                <th className="p-3 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    aria-label="تحديد كل المستخدمين"
+                    checked={isAllSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = isSomeSelected;
+                    }}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 rounded border-[#ccd0d4] text-[#2271b1] focus:ring-[#2271b1] cursor-pointer align-middle"
+                  />
+                </th>
                 <th className="p-3 text-right font-semibold text-slate-600">
                   اسم المستخدم
                 </th>
@@ -318,7 +414,7 @@ export default function UsersManager({ notify }) {
             <tbody>
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="p-6 text-center text-slate-400">
+                  <td colSpan={5} className="p-6 text-center text-slate-400">
                     لا يوجد مستخدمين.
                   </td>
                 </tr>
@@ -326,8 +422,21 @@ export default function UsersManager({ notify }) {
                 users.map((u) => (
                   <tr
                     key={u.user_id}
-                    className="border-b border-slate-100 hover:bg-[#f6f7f7] transition-colors"
+                    className={`border-b border-slate-100 hover:bg-[#f6f7f7] transition-colors ${
+                      selectedIds.has(u.user_id) ? "bg-[#f0f6fc]" : ""
+                    }`}
                   >
+                    <td className="p-3 w-10 text-center">
+                      {u.user_id !== currentUserId && (
+                        <input
+                          type="checkbox"
+                          aria-label="تحديد هذا المستخدم"
+                          checked={selectedIds.has(u.user_id)}
+                          onChange={() => handleToggleSelect(u.user_id)}
+                          className="w-4 h-4 rounded border-[#ccd0d4] text-[#2271b1] focus:ring-[#2271b1] cursor-pointer align-middle"
+                        />
+                      )}
+                    </td>
                     <td className="p-3 font-semibold text-slate-800">
                       <span className="inline-flex items-center gap-2">
                         <Shield className="w-3.5 h-3.5 text-cyan-500" />
@@ -379,9 +488,23 @@ export default function UsersManager({ notify }) {
             </div>
           ) : (
             users.map((u) => (
-              <div key={u.user_id} className="p-4 space-y-2.5">
+              <div
+                key={u.user_id}
+                className={`p-4 space-y-2.5 ${
+                  selectedIds.has(u.user_id) ? "bg-[#f0f6fc]" : ""
+                }`}
+              >
                 <div className="flex items-center justify-between gap-2">
                   <div className="font-bold text-slate-800 flex items-center gap-2">
+                    {u.user_id !== currentUserId && (
+                      <input
+                        type="checkbox"
+                        aria-label="تحديد هذا المستخدم"
+                        checked={selectedIds.has(u.user_id)}
+                        onChange={() => handleToggleSelect(u.user_id)}
+                        className="w-4 h-4 rounded border-[#ccd0d4] text-[#2271b1] focus:ring-[#2271b1] cursor-pointer shrink-0 align-middle"
+                      />
+                    )}
                     <Shield className="w-4 h-4 text-cyan-500 shrink-0" />
                     <span>{u.display_name}</span>
                     {u.user_id === currentUserId && (
