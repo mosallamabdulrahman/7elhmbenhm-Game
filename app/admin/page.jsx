@@ -77,6 +77,7 @@ export default function AdminPage() {
   const [questionStats, setQuestionStats] = useState({});
   const [categoryUsage, setCategoryUsage] = useState({});
   const [filterCategory, setFilterCategory] = useState("");
+  const [filterDifficulty, setFilterDifficulty] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState({ msg: "", type: "success" });
@@ -516,13 +517,16 @@ export default function AdminPage() {
 
   const filteredQuestions = questions.filter((q) => {
     const matchesCategory = filterCategory
-      ? q.category_id === filterCategory
+      ? String(q.category_id) === String(filterCategory)
+      : true;
+    const matchesDifficulty = filterDifficulty
+      ? String(q.difficulty) === String(filterDifficulty)
       : true;
     const matchesSearch = searchQuery
       ? q.question_text?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         q.answer_text?.toLowerCase().includes(searchQuery.toLowerCase())
       : true;
-    return matchesCategory && matchesSearch;
+    return matchesCategory && matchesDifficulty && matchesSearch;
   });
 
   const filteredCategories = categories.filter((c) => {
@@ -658,6 +662,8 @@ export default function AdminPage() {
               questionStats={questionStats}
               filterCategory={filterCategory}
               setFilterCategory={setFilterCategory}
+              filterDifficulty={filterDifficulty}
+              setFilterDifficulty={setFilterDifficulty}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               busy={busy}

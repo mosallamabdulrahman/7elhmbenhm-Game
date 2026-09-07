@@ -565,30 +565,39 @@ function BattlePageInner() {
         .from("combat_events")
         .select("*")
         .eq("room_id", roomId)
-        .order("created_at", { ascending: false })
-        .limit(100);
+        .order("created_at", { ascending: false });
 
       if (eventError) throw eventError;
 
-      // Functional merge: Never discard already-known/optimistic strikes on stale Safari re-fetches
+      // Functional merge: Keep ALL combat events for the room without truncating.
+      // Truncating via limit/slice caused earlier strikes to disappear and re-open on the grid.
       setCombatEvents((prev) => {
         const map = new Map();
         (prev || []).forEach((e) => {
           if (e) {
-            const key = e.id || `strike-${e.target_team_index}-${e.cell_index}`;
+            const key =
+              e.event_type === "strike"
+                ? `strike-${e.target_team_index}-${e.cell_index}`
+                : e.id || `event-${Math.random()}`;
             map.set(key, e);
           }
         });
         (eventData || []).forEach((e) => {
           if (e && e.id) {
-            const optKey = `strike-${e.target_team_index}-${e.cell_index}`;
-            map.delete(optKey);
-            map.set(e.id, e);
+            const strikeKey =
+              e.event_type === "strike"
+                ? `strike-${e.target_team_index}-${e.cell_index}`
+                : null;
+            if (strikeKey) {
+              map.set(strikeKey, e);
+            } else {
+              map.set(e.id, e);
+            }
           }
         });
-        return Array.from(map.values())
-          .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-          .slice(0, 100);
+        return Array.from(map.values()).sort(
+          (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0),
+        );
       });
     } catch (err) {
       console.error(err);
@@ -684,15 +693,14 @@ function BattlePageInner() {
               if (
                 e.event_type === "strike" &&
                 newEvent.event_type === "strike" &&
-                e.target_team_index === newEvent.target_team_index &&
-                e.cell_index === newEvent.cell_index &&
-                (e.is_optimistic || e.result === "pending")
+                Number(e.target_team_index) === Number(newEvent.target_team_index) &&
+                Number(e.cell_index) === Number(newEvent.cell_index)
               ) {
                 return false;
               }
               return true;
             });
-            return [newEvent, ...filtered].slice(0, 100);
+            return [newEvent, ...filtered];
           });
           if (payload.new.event_type === "strike") {
             setLatestCombatEvent(payload.new);
@@ -1190,7 +1198,8 @@ function BattlePageInner() {
           // If error is unique constraint violation, cell is already struck in DB: keep struck state
           if (
             error.message &&
-            error.message.includes("uq_combat_events_one_strike_per_cell")
+            (error.message.includes("uq_combat_events_one_strike_per_cell") ||
+              error.message.includes("already attacked"))
           ) {
             console.warn("Cell was already struck in DB, keeping struck state.");
             return;
@@ -1206,9 +1215,16 @@ function BattlePageInner() {
         if (serverEvent && serverEvent.id) {
           setCombatEvents((prev) => {
             const filtered = (prev || []).filter(
-              (e) => e.id !== tempId && e.id !== serverEvent.id,
+              (e) =>
+                e.id !== tempId &&
+                e.id !== serverEvent.id &&
+                !(
+                  e.event_type === "strike" &&
+                  Number(e.target_team_index) === Number(targetTeamIndex) &&
+                  Number(e.cell_index) === Number(cellIndex)
+                ),
             );
-            return [serverEvent, ...filtered].slice(0, 100);
+            return [serverEvent, ...filtered];
           });
           setLatestCombatEvent(serverEvent);
         }
@@ -1790,10 +1806,8 @@ function BattlePageInner() {
 
     const activeTeam = teams.find((t) => t.team_index === teamIndex);
 
-    // Read current board (pending snapshot or team board)
-    const currentBoardState = pendingBoardRef.current
-      ? pendingBoardRef.current.board
-      : activeTeam?.board || [];
+    // Read current board
+    const currentBoardState = activeTeam?.board || [];
 
     // Compute remaining points dynamically from STARTING_POINTS (4000)
     const totalSpentCost = (currentBoardState || []).reduce(

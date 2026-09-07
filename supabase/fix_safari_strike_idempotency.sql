@@ -56,6 +56,9 @@ BEGIN
   END IF;
 
   SELECT board INTO v_target_board FROM team_boards WHERE team_id = v_target.id FOR UPDATE;
+  IF v_target_board IS NULL THEN
+    v_target_board := v_target.board;
+  END IF;
   IF v_target_board IS NULL THEN RAISE EXCEPTION 'خريطة الفريق المستهدف غير موجودة.'; END IF;
 
   v_cell := v_target_board ->> p_cell_index;
@@ -76,6 +79,9 @@ BEGIN
       UPDATE team_boards
         SET board = jsonb_set(board, ARRAY[p_cell_index::TEXT], 'null'::jsonb), updated_at = now()
         WHERE team_id = v_target.id;
+      UPDATE teams
+        SET board = jsonb_set(board, ARRAY[p_cell_index::TEXT], 'null'::jsonb)
+        WHERE id = v_target.id AND board IS NOT NULL;
     END IF;
 
   ELSE
@@ -96,6 +102,9 @@ BEGIN
       UPDATE team_boards
         SET board = jsonb_set(board, ARRAY[p_cell_index::TEXT], 'null'::jsonb), updated_at = now()
         WHERE team_id = v_target.id;
+      UPDATE teams
+        SET board = jsonb_set(board, ARRAY[p_cell_index::TEXT], 'null'::jsonb)
+        WHERE id = v_target.id AND board IS NOT NULL;
     END IF;
   END IF;
 

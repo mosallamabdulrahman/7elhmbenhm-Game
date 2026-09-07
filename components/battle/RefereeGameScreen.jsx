@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   Flag,
@@ -795,25 +795,31 @@ export function RefereeGameScreen({
     ? events.filter(
         (event) =>
           event.event_type === "strike" &&
-          event.target_team_index === strikeTarget.team_index,
+          Number(event.target_team_index) === Number(strikeTarget.team_index),
       )
     : [];
-  const strikeCellResults = new Map(
-    strikeEvents.map((event) => [event.cell_index, event.result]),
-  );
-  const strikeCellUnits = new Map(
-    strikeEvents.map((event) => [event.cell_index, event.unit_type]),
-  );
+  const strikeCellResults = new Map();
+  const strikeCellUnits = new Map();
+  strikeEvents.forEach((event) => {
+    const cellIdx = Number(event.cell_index);
+    const existing = strikeCellResults.get(cellIdx);
+    // Confirmed results (hit, miss, mine, blocked) always take precedence over pending
+    if (!existing || existing === "pending" || event.result !== "pending") {
+      strikeCellResults.set(cellIdx, event.result);
+      strikeCellUnits.set(cellIdx, event.unit_type);
+    }
+  });
   // Cells already known via radar for this same target — shown as
   // "revealed" (no ✕) unless they've since actually been struck.
   const strikeRadarRevealMap = strikeTarget
     ? new Map(
         (radarRevealsByTeam?.[strikeTarget.team_index] || []).map((cell) => [
-          cell.cell_index,
+          Number(cell.cell_index),
           cell.unit_type,
         ]),
       )
     : new Map();
+
 
   return (
     <div className="min-h-[100dvh] bg-slate-100 flex flex-col justify-between overflow-x-auto overflow-y-auto dir-rtl">
@@ -1317,7 +1323,8 @@ export function RefereeGameScreen({
           <div className="grid grid-cols-6 gap-1.5">
             {Array.from({ length: 36 }, (_, cellIndex) => {
               const serverResult = strikeCellResults.get(cellIndex);
-              const isLocallyPending = locallyPendingStrikes.has(cellIndex);
+              const isLocallyPending =
+                !serverResult && locallyPendingStrikes.has(cellIndex);
               const result =
                 serverResult || (isLocallyPending ? "pending" : undefined);
               const hitUnit = strikeCellUnits.get(cellIndex);
@@ -1340,6 +1347,7 @@ export function RefereeGameScreen({
                   type="button"
                   disabled={!canClick}
                   onClick={() => {
+                    if (!canClick) return;
                     setLocallyPendingStrikes((prev) =>
                       new Set(prev).add(cellIndex),
                     );
