@@ -19,12 +19,14 @@ import CategoriesTab from "@/components/admin/CategoriesTab";
 import GroupsTab from "@/components/admin/GroupsTab";
 import GroupModal from "@/components/admin/GroupModal";
 import StatsTab from "@/components/admin/StatsTab";
+import SupportTab from "@/components/admin/SupportTab";
 
 const VALID_TABS = [
   "dashboard",
   "groups",
   "categories",
   "questions",
+  "support",
   "users",
   "stats",
 ];
@@ -177,6 +179,18 @@ export default function AdminPage() {
     }
   }, []);
 
+  const [unreadSupportCount, setUnreadSupportCount] = useState(0);
+
+  const loadUnreadSupportCount = useCallback(async () => {
+    try {
+      const data = await callAdminApi("/api/support");
+      const unread = (data.messages || []).filter((m) => m.status === "unread").length;
+      setUnreadSupportCount(unread);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
     Promise.all([
@@ -185,6 +199,7 @@ export default function AdminPage() {
       loadQuestions(),
       loadCategoryUsage(),
       loadQuestionStats(),
+      loadUnreadSupportCount(),
     ]).finally(() => {
       if (active) setLoading(false);
     });
@@ -197,6 +212,7 @@ export default function AdminPage() {
     loadQuestions,
     loadCategoryUsage,
     loadQuestionStats,
+    loadUnreadSupportCount,
   ]);
 
   // ── Groups CRUD
@@ -296,7 +312,13 @@ export default function AdminPage() {
 
   const saveQuestion = async (form) => {
     const targetCat = categories.find((c) => String(c.id) === String(form.category_id));
-    const isWlaKelma = targetCat?.name === "ولا كلمة" || String(form.category_id) === "wla_kelma";
+    const targetGroup = groups.find((g) => String(g.id) === String(targetCat?.group_id));
+    const isWlaKelma =
+      targetCat?.name === "ولا كلمة" ||
+      targetCat?.name?.includes("ولا كلمة") ||
+      targetGroup?.name === "ولا كلمة" ||
+      targetCat?.group_id === "d6a55dbb-85dd-4245-985e-e3d7e5d1e000" ||
+      String(form.category_id) === "wla_kelma";
 
     const qText = form.question_text?.trim() || (isWlaKelma ? form.answer_text?.trim() || "ولا كلمة" : "");
     const aText = form.answer_text?.trim() || "";
@@ -306,9 +328,12 @@ export default function AdminPage() {
         if (q.category_id !== form.category_id || q.id === form.id) return false;
         const sameAnswer = (q.answer_text?.trim().toLowerCase() || "") === aText.toLowerCase();
         const sameAnswerImage = (q.answer_image_url?.trim() || "") === (form.answer_image_url?.trim() || "");
-        if (isWlaKelma) return sameAnswer && sameAnswerImage;
+        if (isWlaKelma) {
+          if (!aText) return false;
+          return sameAnswer && sameAnswerImage;
+        }
         const sameText = q.question_text?.trim().toLowerCase() === qText.toLowerCase();
-        return sameText && sameAnswer && sameAnswerImage;
+        return sameText && (sameAnswer || (!aText && !q.answer_text?.trim())) && sameAnswerImage;
       }
     );
     if (isDup) {
@@ -595,7 +620,7 @@ export default function AdminPage() {
       </AnimatePresence>
 
       <div className="flex flex-1 min-h-[calc(100vh-32px)]">
-        <AdminSidebar tab={tab} setTab={setTab} />
+        <AdminSidebar tab={tab} setTab={setTab} unreadSupportCount={unreadSupportCount} />
 
         {/* Main Content Area */}
         <main className="flex-1 bg-[#f0f0f1] p-3 sm:p-6 text-[#2c3338] overflow-auto">
@@ -607,6 +632,7 @@ export default function AdminPage() {
                 {tab === "groups" && "التصنيفات"}
                 {tab === "categories" && "فئات الأسئلة"}
                 {tab === "questions" && "الأسئلة"}
+                {tab === "support" && "رسائل الدعم"}
                 {tab === "users" && "المستخدمين"}
                 {tab === "stats" && "إحصائيات اللعبة"}
               </h1>
@@ -707,6 +733,10 @@ export default function AdminPage() {
               onInlineStatusChange={handleInlineCategoryStatusChange}
               onBulkAction={handleBulkCategories}
             />
+          )}
+
+          {tab === "support" && (
+            <SupportTab notify={notify} onRefreshUnread={loadUnreadSupportCount} />
           )}
 
           {tab === "users" && (

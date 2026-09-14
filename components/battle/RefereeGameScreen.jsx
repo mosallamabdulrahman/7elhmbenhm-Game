@@ -1,16 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  CheckCircle,
   Flag,
+  Headphones,
+  ImagePlus,
   LayoutGrid,
+  Loader2,
   LogOut,
   Pause,
   PhoneCall,
   Play,
   Radar,
   RotateCcw,
+  Send,
   Shield,
   Star,
   ToggleRight,
@@ -394,6 +399,7 @@ export function GameBottomFooter({
   onUseTool,
   onGrantPoints,
   onGrantExtraStrike,
+  onOpenSupport,
 }) {
   return (
     <div className="w-full bg-[#e2e8f0] p-1.5 xs:p-2 sm:p-4 shrink-0">
@@ -470,8 +476,26 @@ export function GameBottomFooter({
         </div>
 
         {/* Center Logo Section */}
-        <div className="flex flex-col items-center justify-center shrink-0 px-2">
+        <div className="flex flex-col items-center justify-center shrink-0 px-2 -mt-[37px] gap-2">
           <GameLogo className="w-22 h-22" />
+          {/* Floating Support Button - Visible on both main game grid & question answer screen */}
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onOpenSupport}
+            className="z-[250] flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-slate-900/95 hover:bg-slate-900 text-white shadow-2xl border border-white/25 backdrop-blur-md cursor-pointer transition-all duration-200 group select-none"
+            title="إرسال رسالة للدعم الفني"
+          >
+            <div className="relative flex items-center justify-center">
+              <Headphones className="w-4 h-4 text-cyan-400 group-hover:rotate-12 transition-transform shrink-0" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500" />
+            </div>
+            <span className="text-xs font-bold text-slate-100 hidden sm:inline">
+              الدعم الفني
+            </span>
+          </motion.button>
         </div>
 
         {/* Team 2 Section (Left side in RTL) */}
@@ -587,11 +611,295 @@ function TeamToolsCard({ team, isBusy, onOpenRadar, onOpenStrike, onUseTool }) {
   );
 }
 
+function GameSupportModal({ roomId, onClose }) {
+  const [senderEmail, setSenderEmail] = useState("");
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [sentSuccess, setSentSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const fileInputRef = useRef(null);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setErrorMsg("يرجى اختيار ملف صورة صالح (PNG, JPG, WEBP).");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg("حجم الصورة كبير جداً (الحد الأقصى 5 ميجابايت).");
+      return;
+    }
+
+    setErrorMsg("");
+    setImageFile(file);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault();
+    const emailTrimmed = senderEmail.trim().toLowerCase();
+    const subjectTrimmed = subject.trim();
+    const messageTrimmed = message.trim();
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailTrimmed || !emailRegex.test(emailTrimmed)) {
+      setErrorMsg("يرجى إدخال بريد إلكتروني صحيح للتواصل معك.");
+      return;
+    }
+
+    if (!subjectTrimmed || subjectTrimmed.length < 3) {
+      setErrorMsg("يرجى كتابة عنوان للمشكلة (3 أحرف على الأقل).");
+      return;
+    }
+
+    if (!messageTrimmed || messageTrimmed.length < 5) {
+      setErrorMsg("يرجى كتابة تفاصيل المشكلة (5 أحرف على الأقل).");
+      return;
+    }
+
+    setErrorMsg("");
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/support", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          room_id: roomId,
+          sender_email: emailTrimmed,
+          subject: subjectTrimmed,
+          message: messageTrimmed,
+          image_data: imagePreview || null,
+          sender_role: "referee",
+          page_url: typeof window !== "undefined" ? window.location.href : "",
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSentSuccess(true);
+        setTimeout(() => {
+          onClose();
+        }, 1800);
+      } else {
+        setErrorMsg(data.error || "فشل إرسال الرسالة.");
+      }
+    } catch {
+      setErrorMsg("تعذر الاتصال بالسيرفر. يرجى المحاولة مرة أخرى.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[500] flex items-center justify-center bg-slate-950/80 p-4 dir-rtl"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.92 }}
+        className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-cyan-50 text-cyan-600 flex items-center justify-center">
+              <Headphones className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-950 text-base mb-1">
+                إرسال رسالة للدعم
+              </h3>
+              <p className="text-[11px] text-slate-400 font-bold">
+                أرسل ملاحظتك أو مشكلتك للإدارة مباشرة
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center shrink-0 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {sentSuccess ? (
+          <div className="py-8 text-center space-y-2">
+            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center">
+              <CheckCircle className="w-6 h-6" />
+            </div>
+            <h4 className="font-bold text-slate-900 text-sm">
+              تم إرسال رسالتك بنجاح!
+            </h4>
+            <p className="text-xs text-slate-500">
+              وصلت رسالتك للإدارة وسيتم الرد عليك عبر البريد ومراجعتها فوراً.
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-3 text-right">
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                البريد الإلكتروني *
+              </label>
+              <input
+                type="email"
+                required
+                value={senderEmail}
+                onChange={(e) => setSenderEmail(e.target.value)}
+                placeholder="name@example.com"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">
+                سنستخدم هذا البريد للتواصل معك وحل المشكلة.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                عنوان المشكلة *
+              </label>
+              <input
+                type="text"
+                required
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="مثلاً: خطأ في إجابة سؤال، زر لا يستجيب..."
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                تفاصيل المشكلة *
+              </label>
+              <textarea
+                rows={4}
+                required
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="اشرح ما حدث بالتفصيل هنا..."
+                className="w-full rounded-xl border border-slate-200 p-3 text-xs outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 resize-none transition"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                إرفاق صورة أو لقطة شاشة (اختياري)
+              </label>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+
+              {imagePreview ? (
+                <div className="relative rounded-2xl border border-slate-200 bg-slate-50 p-2 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 overflow-hidden">
+                    <img
+                      src={imagePreview}
+                      alt="معاينة الصورة"
+                      className="w-12 h-12 object-cover rounded-xl border border-slate-200 shrink-0"
+                    />
+                    <div className="text-right overflow-hidden">
+                      <p className="text-xs font-bold text-slate-800 truncate max-w-[200px]">
+                        {imageFile?.name || "صورة مرفقة"}
+                      </p>
+                      <p className="text-[10px] text-slate-400">
+                        {imageFile?.size
+                          ? `${(imageFile.size / 1024).toFixed(0)} KB`
+                          : "جاهزة للإرسال"}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="p-1.5 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 transition cursor-pointer shrink-0"
+                    title="إزالة الصورة"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 border-dashed border-slate-200 hover:border-cyan-400 bg-slate-50/50 hover:bg-cyan-50/40 text-slate-600 hover:text-cyan-700 text-xs font-bold transition cursor-pointer"
+                >
+                  <ImagePlus className="w-4 h-4 text-cyan-600" />
+                  <span>اضغط لاختيار صورة توضيحية للمشكلة</span>
+                </button>
+              )}
+            </div>
+
+            {errorMsg && (
+              <p className="text-rose-600 text-xs font-bold bg-rose-50 border border-rose-100 p-2 rounded-lg">
+                {errorMsg}
+              </p>
+            )}
+
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="submit"
+                disabled={
+                  submitting ||
+                  !senderEmail.trim() ||
+                  !subject.trim() ||
+                  !message.trim()
+                }
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs shadow transition disabled:opacity-50 cursor-pointer"
+              >
+                {submitting ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+                <span>إرسال للدعم</span>
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs transition cursor-pointer"
+              >
+                إلغاء
+              </button>
+            </div>
+          </form>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
 function BoardModal({
   title,
   subtitle,
   onClose,
   dismissible = true,
+  actionButton = null,
   children,
 }) {
   return (
@@ -605,24 +913,27 @@ function BoardModal({
         className="w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 gap-2">
           <div>
-            <h3 className=" text-slate-950">{title}</h3>
+            <h3 className=" text-slate-950 text-base">{title}</h3>
             {subtitle && (
               <p className="text-[11px] text-slate-500 font-bold mt-0.5">
                 {subtitle}
               </p>
             )}
           </div>
-          {dismissible && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center shrink-0"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {actionButton}
+            {dismissible && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center shrink-0 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
         {children}
       </motion.div>
@@ -700,6 +1011,7 @@ export function RefereeGameScreen({
   onPauseTimer,
   onResumeTimer,
   onResetTimer,
+  onCancelStrike,
   onExit,
 }) {
   const [showAnswer, setShowAnswer] = useState(false);
@@ -712,6 +1024,7 @@ export function RefereeGameScreen({
   const [locallyPendingStrikes, setLocallyPendingStrikes] = useState(new Set());
   const [confirmAction, setConfirmAction] = useState(null); // null | "end" | "exit"
   const [expandedImage, setExpandedImage] = useState(null);
+  const [supportModalOpen, setSupportModalOpen] = useState(false);
 
   const activeQuestion = questions.find(
     (question) => question.id === room.active_question_id,
@@ -820,7 +1133,6 @@ export function RefereeGameScreen({
       )
     : new Map();
 
-
   return (
     <div className="min-h-[100dvh] bg-slate-100 flex flex-col justify-between overflow-x-auto overflow-y-auto dir-rtl">
       <header className="bg-gradient-to-l from-cyan-800 via-cyan-700 to-cyan-600 shadow-lg shrink-0">
@@ -831,6 +1143,16 @@ export function RefereeGameScreen({
             <GameLogo className="w-9 h-9 shrink-0" />
 
             <div className="flex items-center gap-2 text-white font-bold text-xs shrink-0">
+              <button
+                type="button"
+                onClick={() => setSupportModalOpen(true)}
+                className="inline-flex items-center gap-1 hover:text-emerald-200 transition cursor-pointer"
+                title="إرسال رسالة للدعم الفني"
+              >
+                <Headphones className="w-3.5 h-3.5 text-white shrink-0" />
+                <span className="whitespace-nowrap">الدعم</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setConfirmAction("end")}
@@ -1035,6 +1357,8 @@ export function RefereeGameScreen({
                     </span>
 
                     {activeQuestion.category_name === "ولا كلمة" ||
+                    activeQuestion.category_name?.includes("ولا كلمة") ||
+                    activeQuestion.group_name === "ولا كلمة" ||
                     activeQuestion.category_id === "wla_kelma" ? (
                       <div className="flex flex-col items-center justify-center w-full py-1 sm:py-3">
                         {/* Main Interactive Grid: Rules on Right (in RTL), QR on Left */}
@@ -1042,20 +1366,26 @@ export function RefereeGameScreen({
                           {/* Rules Pills Stack with Step Number Badges */}
                           <div className="flex-1 w-full flex flex-col gap-3.5 max-w-md">
                             <div className="w-full rounded-full bg-white border-2 border-slate-200/90 py-2.5 sm:py-3 pr-11 sm:pr-14 pl-3 sm:pl-5 text-slate-800 font-extrabold text-xs sm:text-sm md:text-base shadow-sm relative flex items-center justify-center text-center">
-                              <span className="leading-snug">اختر شخص غير مكرر لتمثيل فريقك</span>
-                              <div className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#f25c05] text-white font-black text-sm sm:text-base md:text-lg flex items-center justify-center shadow-sm shrink-0">
+                              <span className="leading-snug">
+                                اختر شخص غير مكرر لتمثيل فريقك
+                              </span>
+                              <div className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#f25c05] text-white  text-sm sm:text-base md:text-lg flex items-center justify-center shadow-sm shrink-0">
                                 1
                               </div>
                             </div>
                             <div className="w-full rounded-full bg-white border-2 border-slate-200/90 py-2.5 sm:py-3 pr-11 sm:pr-14 pl-3 sm:pl-5 text-slate-800 font-extrabold text-xs sm:text-sm md:text-base shadow-sm relative flex items-center justify-center text-center">
-                              <span className="leading-snug">هذا الشخص الوحيد المسموح له تصوير الباركود</span>
-                              <div className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#f25c05] text-white font-black text-sm sm:text-base md:text-lg flex items-center justify-center shadow-sm shrink-0">
+                              <span className="leading-snug">
+                                هذا الشخص الوحيد المسموح له تصوير الباركود
+                              </span>
+                              <div className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#f25c05] text-white  text-sm sm:text-base md:text-lg flex items-center justify-center shadow-sm shrink-0">
                                 2
                               </div>
                             </div>
                             <div className="w-full rounded-full bg-white border-2 border-slate-200/90 py-2.5 sm:py-3 pr-11 sm:pr-14 pl-3 sm:pl-5 text-slate-800 font-extrabold text-xs sm:text-sm md:text-base shadow-sm relative flex items-center justify-center text-center">
-                              <span className="leading-snug">بعد تصوير الباركود ورؤية السؤال اضغط جاهز</span>
-                              <div className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#f25c05] text-white font-black text-sm sm:text-base md:text-lg flex items-center justify-center shadow-sm shrink-0">
+                              <span className="leading-snug">
+                                بعد تصوير الباركود ورؤية السؤال اضغط جاهز
+                              </span>
+                              <div className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#f25c05] text-white  text-sm sm:text-base md:text-lg flex items-center justify-center shadow-sm shrink-0">
                                 3
                               </div>
                             </div>
@@ -1075,7 +1405,7 @@ export function RefereeGameScreen({
                                 className="w-full h-full object-contain"
                               />
                             </div>
-                            <span className="absolute -bottom-3 bg-gradient-to-r from-orange-600 to-amber-500 text-white font-black text-xs sm:text-sm px-8 py-1.5 rounded-full shadow-lg tracking-wide">
+                            <span className="absolute -bottom-3 bg-gradient-to-r from-orange-600 to-amber-500 text-white  text-xs sm:text-sm px-8 py-1.5 rounded-full shadow-lg tracking-wide">
                               السؤال
                             </span>
                           </div>
@@ -1146,7 +1476,7 @@ export function RefereeGameScreen({
                         <img
                           src={answerImageUrl}
                           alt="صورة الإجابة"
-                          className="mt-4 max-h-64 w-full object-contain rounded-xl mx-auto cursor-pointer hover:opacity-90 active:scale-[0.99] transition shadow-sm"
+                          className="mt-4 max-h-64 object-contain rounded-xl mx-auto cursor-pointer hover:opacity-90 active:scale-[0.99] transition shadow-sm"
                           onClick={() => setExpandedImage(answerImageUrl)}
                           title="اضغط لتكبير الصورة"
                         />
@@ -1248,6 +1578,7 @@ export function RefereeGameScreen({
               onUseTool={onUseTool}
               onGrantPoints={onGrantPoints}
               onGrantExtraStrike={onGrantExtraStrike}
+              onOpenSupport={() => setSupportModalOpen(true)}
             />
           </motion.div>
         )}
@@ -1319,6 +1650,24 @@ export function RefereeGameScreen({
             setLocallyPendingStrikes(new Set());
             setStrikeModalTeam(null);
           }}
+          actionButton={
+            <button
+              type="button"
+              onClick={async () => {
+                const teamIdx = strikeModalTeam;
+                setLocallyPendingStrikes(new Set());
+                setStrikeModalTeam(null);
+                if (onCancelStrike) {
+                  await onCancelStrike(teamIdx);
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold transition shadow-sm cursor-pointer"
+              title="إلغاء الضربة وإرجاع اللعبة"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>إلغاء الضربة</span>
+            </button>
+          }
         >
           <div className="grid grid-cols-6 gap-1.5">
             {Array.from({ length: 36 }, (_, cellIndex) => {
@@ -1414,6 +1763,15 @@ export function RefereeGameScreen({
         imageUrl={expandedImage}
         onClose={() => setExpandedImage(null)}
       />
+
+      <AnimatePresence>
+        {supportModalOpen && (
+          <GameSupportModal
+            roomId={room.id}
+            onClose={() => setSupportModalOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

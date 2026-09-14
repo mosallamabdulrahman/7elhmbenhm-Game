@@ -87,7 +87,7 @@ export default async function WlaKelmaPage({ params }) {
         {found ? (
           <div className="w-full flex flex-col items-center">
             {/* Title / Headline: e.g. "مسلسل: ولاد الشمس" */}
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-snug mt-2 mb-4 px-2">
+            <h1 className="text-xl sm:text-2xl md:text-3xl  text-slate-900 tracking-tight leading-snug mt-2 mb-4 px-2">
               {answerText}
             </h1>
 

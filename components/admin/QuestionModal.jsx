@@ -91,7 +91,7 @@ function CategorySelectDropdown({ categories, selectedId, onChange }) {
                 }}
                 className={`w-full text-right px-3 py-2.5 text-xs sm:text-sm rounded-xl transition cursor-pointer flex items-center justify-between ${
                   isSelected
-                    ? "bg-cyan-50 text-cyan-900 font-black"
+                    ? "bg-cyan-50 text-cyan-900 "
                     : "text-slate-700 hover:bg-slate-50"
                 }`}
               >
@@ -204,6 +204,9 @@ export default function QuestionModal({
   );
   const isWlaKelma =
     selectedCategory?.name === "ولا كلمة" ||
+    selectedCategory?.name?.includes("ولا كلمة") ||
+    selectedCategory?.group_name === "ولا كلمة" ||
+    selectedCategory?.group_id === "d6a55dbb-85dd-4245-985e-e3d7e5d1e000" ||
     String(form.category_id) === "wla_kelma";
 
   const isDuplicateQuestion = (questions || []).some((q) => {
@@ -217,12 +220,17 @@ export default function QuestionModal({
       (q.answer_image_url?.trim() || "") ===
       (form.answer_image_url?.trim() || "");
     if (isWlaKelma) {
+      if (!form.answer_text?.trim()) return false;
       return sameAnswer && sameAnswerImage;
     }
     const sameText =
       q.question_text?.trim().toLowerCase() ===
       form.question_text?.trim().toLowerCase();
-    return sameText && sameAnswer && sameAnswerImage;
+    return (
+      sameText &&
+      (sameAnswer || (!form.answer_text?.trim() && !q.answer_text?.trim())) &&
+      sameAnswerImage
+    );
   });
 
   // New question, category changed: jump the position past that category's
@@ -326,14 +334,16 @@ export default function QuestionModal({
           <div>
             <label className="text-[11px] font-bold text-slate-500">
               {isWlaKelma
-                ? "المطلوب تمثيله / الإجابة (مثل: مهنة: رائد فضاء، رياضة: ركوب الخيل، مثل شعبي) *"
-                : "الإجابة الصحيحة *"}
+                ? "المطلوب تمثيله / الإجابة (مثل: مهنة: رائد فضاء، رياضة: ركوب الخيل، مثل شعبي) (اختياري)"
+                : "الإجابة الصحيحة (اختياري)"}
             </label>
             <input
               value={form.answer_text}
               onChange={(e) => set("answer_text", e.target.value)}
               className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-cyan-500 outline-none transition-colors"
-              placeholder={isWlaKelma ? "مهنة: رائد فضاء" : "الإجابة"}
+              placeholder={
+                isWlaKelma ? "مهنة: رائد فضاء (اختياري)" : "الإجابة (اختياري)"
+              }
             />
             {isWlaKelma && isDuplicateQuestion && (
               <p className="mt-1.5 text-[11px] font-bold text-rose-600 flex items-center gap-1">
@@ -417,7 +427,7 @@ export default function QuestionModal({
                   <button
                     type="button"
                     onClick={handleStepUp}
-                    className="text-cyan-700 hover:underline cursor-pointer text-right inline-flex items-center gap-1 font-black"
+                    className="text-cyan-700 hover:underline cursor-pointer text-right inline-flex items-center gap-1 "
                   >
                     ⚡ اضغط هنا للانتقال لأقرب موضع متاح (#
                     {getNextFreePosition(form.position)})
@@ -568,7 +578,6 @@ export default function QuestionModal({
               busy ||
               !form.category_id ||
               (!isWlaKelma && !form.question_text.trim()) ||
-              !form.answer_text.trim() ||
               positionTaken ||
               isDuplicateQuestion
             }

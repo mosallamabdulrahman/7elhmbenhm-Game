@@ -62,10 +62,7 @@ function TimedImage({ mediaUrl, durationSeconds, onImageClick }) {
   // resets `hidden` — the effect only has to own the timer itself.
   useEffect(() => {
     if (!durationSeconds || durationSeconds <= 0) return;
-    const timeoutId = setTimeout(
-      () => setHidden(true),
-      durationSeconds * 1000,
-    );
+    const timeoutId = setTimeout(() => setHidden(true), durationSeconds * 1000);
     return () => clearTimeout(timeoutId);
   }, [durationSeconds]);
 
@@ -85,7 +82,7 @@ function TimedImage({ mediaUrl, durationSeconds, onImageClick }) {
       <img
         src={mediaUrl}
         alt="وسائط السؤال"
-        className="w-full max-h-72 object-contain rounded-xl cursor-pointer hover:opacity-90 active:scale-[0.99] transition shadow-sm"
+        className="max-h-72 object-contain mx-auto rounded-xl cursor-pointer hover:opacity-90 active:scale-[0.99] transition shadow-sm"
         loading="lazy"
         onClick={() => onImageClick?.(mediaUrl)}
         title="اضغط لتكبير الصورة"
@@ -828,4 +825,3 @@ export function ImageModal({ imageUrl, onClose }) {
     </div>
   );
 }
-

@@ -417,7 +417,7 @@ export default function MyGamesPage() {
               return (
                 <div key={group.gameName} className="relative flex flex-col">
                   {/* Top Badge: Play Count */}
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20 whitespace-nowrap rounded-full bg-emerald-700 px-5 py-1 text-xs sm:text-sm font-black text-white shadow-md border border-emerald-600">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20 whitespace-nowrap rounded-full bg-emerald-700 px-5 py-1 text-xs sm:text-sm  text-white shadow-md border border-emerald-600">
                     عدد مرات اللعب: {group.rooms.length}
                   </div>
 

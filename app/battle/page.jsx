@@ -108,6 +108,7 @@ function BattlePageInner() {
   const questionStartedAtRef = useRef(null);
   const audioContextRef = useRef(null);
   const lastSoundEventIdRef = useRef(null);
+  const lastSoundTimeRef = useRef(0);
   const deploymentTimerRef = useRef(null);
   const pendingBoardRef = useRef(null);
 
@@ -236,18 +237,15 @@ function BattlePageInner() {
         playTone(220, 0.25, "sawtooth", 0.06);
         window.setTimeout(() => playTone(165, 0.25, "sawtooth", 0.05), 150);
       } else if (type === "hit") {
-        playTone(180, 0.12, "sawtooth", 0.08);
-        window.setTimeout(() => playTone(90, 0.25, "sawtooth", 0.07), 80);
-        playNoise(0.2, 0.06);
+        playTone(160, 0.22, "sawtooth", 0.09);
+        playNoise(0.22, 0.08);
       } else if (type === "mine") {
         playNoise(0.55, 0.16);
         playTone(70, 0.45, "sawtooth", 0.08);
       } else if (type === "blocked") {
-        playTone(520, 0.1, "triangle", 0.05);
-        window.setTimeout(() => playTone(700, 0.1, "triangle", 0.04), 110);
+        playTone(550, 0.15, "triangle", 0.06);
       } else if (type === "miss") {
-        playTone(320, 0.08, "sine", 0.035);
-        window.setTimeout(() => playTone(260, 0.08, "sine", 0.03), 90);
+        playTone(300, 0.12, "sine", 0.04);
       }
     },
     [playNoise, playTone],
@@ -345,8 +343,15 @@ function BattlePageInner() {
 
   useEffect(() => {
     if (!latestCombatEvent || latestCombatEvent.event_type !== "strike") return;
-    if (lastSoundEventIdRef.current === latestCombatEvent.id) return;
+    const now = Date.now();
+    if (
+      lastSoundEventIdRef.current === latestCombatEvent.id ||
+      now - lastSoundTimeRef.current < 450
+    ) {
+      return;
+    }
     lastSoundEventIdRef.current = latestCombatEvent.id;
+    lastSoundTimeRef.current = now;
     playGameSound(latestCombatEvent.result || "miss");
   }, [latestCombatEvent, playGameSound]);
 
@@ -1238,6 +1243,30 @@ function BattlePageInner() {
       }
     });
 
+  // Cancel strikes for a team (if referee awarded strike to wrong team by mistake)
+  const handleCancelStrike = (attackerTeamIndex) =>
+    runAction(async () => {
+      // 1. Optimistically zero out strikes for that team
+      setTeams((prev) =>
+        prev.map((t) =>
+          t.team_index === attackerTeamIndex
+            ? { ...t, available_strikes: 0 }
+            : t,
+        ),
+      );
+
+      // 2. Call cancel_team_strikes in Supabase
+      const { error } = await supabase.rpc("cancel_team_strikes", {
+        p_room_id: roomId,
+        p_team_index: attackerTeamIndex,
+      });
+
+      if (error) {
+        console.error("Failed to cancel strikes:", error);
+        throw error;
+      }
+    });
+
   // Referee activates a team's tool on their behalf
   const handleUseTool = (forTeamIndex, toolId, cellIndex) =>
     runAction(async () => {
@@ -1479,6 +1508,7 @@ function BattlePageInner() {
           onPauseTimer={handlePauseTimer}
           onResumeTimer={handleResumeTimer}
           onResetTimer={handleResetTimer}
+          onCancelStrike={handleCancelStrike}
           onExit={handleExitGame}
         />
         <CombatEventModal

@@ -693,13 +693,16 @@ export default function QuestionsTab({
                         />
                       </td>
                       <td className="p-3 max-w-sm">
-                        {cat?.name === "ولا كلمة" ? (
+                        {cat?.name === "ولا كلمة" ||
+                        cat?.name?.includes("ولا كلمة") ||
+                        cat?.group_id ===
+                          "d6a55dbb-85dd-4245-985e-e3d7e5d1e000" ? (
                           <div className="font-bold text-[#1d2327] mb-1 flex items-center gap-1.5">
-                            <span className="bg-orange-100 text-orange-800 text-[10px] px-2 py-0.5 rounded-full font-black">
+                            <span className="bg-orange-100 text-orange-800 text-[10px] px-2 py-0.5 rounded-full ">
                               ولا كلمة
                             </span>
                             <span className="line-clamp-1">
-                              {q.answer_text}
+                              {q.answer_text || q.question_text || "ولا كلمة"}
                             </span>
                           </div>
                         ) : (
@@ -707,9 +710,11 @@ export default function QuestionsTab({
                             {q.question_text}
                           </div>
                         )}
-                        <div className="text-[11px] text-emerald-700 font-bold mb-1">
-                          الإجابة: {q.answer_text}
-                        </div>
+                        {q.answer_text && (
+                          <div className="text-[11px] text-emerald-700 font-bold mb-1">
+                            الإجابة: {q.answer_text}
+                          </div>
+                        )}
                         {/* Inline Hover Actions */}
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 text-[11px] font-semibold mt-1">
                           <button

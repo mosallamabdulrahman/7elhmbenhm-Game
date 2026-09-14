@@ -7,6 +7,7 @@ import {
   Edit2,
   FolderTree,
   Globe,
+  Headphones,
   LayoutDashboard,
   Tag,
   Users,
@@ -20,11 +21,12 @@ const NAV_ITEMS = [
   { key: "groups", label: "التصنيفات", icon: FolderTree },
   { key: "categories", label: "فئات الأسئلة", icon: Tag },
   { key: "questions", label: "الأسئلة", icon: Edit2 },
+  { key: "support", label: "رسائل الدعم", icon: Headphones },
   { key: "users", label: "المستخدمين", icon: Users },
   { key: "stats", label: "إحصائيات اللعبة", icon: BarChart3 },
 ];
 
-export default function AdminSidebar({ tab, setTab }) {
+export default function AdminSidebar({ tab, setTab, unreadSupportCount = 0 }) {
   const { mobileOpen, setMobileOpen } = useAdminNav();
 
   const handleSelectTab = (key) => {
@@ -80,7 +82,12 @@ export default function AdminSidebar({ tab, setTab }) {
                   />
                 )}
                 <Icon className="w-4 h-4 shrink-0" />
-                <span>{label}</span>
+                <span className="flex-1">{label}</span>
+                {key === "support" && unreadSupportCount > 0 && (
+                  <span className="inline-flex items-center justify-center px-2 py-0.5 text-[10px]  rounded-full bg-amber-500 text-slate-950 shadow-sm animate-pulse">
+                    {unreadSupportCount}
+                  </span>
+                )}
               </button>
             );
           })}

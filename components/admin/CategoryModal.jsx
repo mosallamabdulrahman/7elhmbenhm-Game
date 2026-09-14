@@ -53,8 +53,10 @@ export default function CategoryModal({
     return prev >= 1 ? prev : current;
   };
 
-  const handleStepUp = () => set("sort_order", getNextFreeOrder(form.sort_order));
-  const handleStepDown = () => set("sort_order", getPrevFreeOrder(form.sort_order));
+  const handleStepUp = () =>
+    set("sort_order", getNextFreeOrder(form.sort_order));
+  const handleStepDown = () =>
+    set("sort_order", getPrevFreeOrder(form.sort_order));
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -217,9 +219,10 @@ export default function CategoryModal({
                   <button
                     type="button"
                     onClick={handleStepUp}
-                    className="text-cyan-700 hover:underline cursor-pointer text-right inline-flex items-center gap-1 font-black"
+                    className="text-cyan-700 hover:underline cursor-pointer text-right inline-flex items-center gap-1 "
                   >
-                    ⚡ اضغط هنا للانتقال لأقرب ترتيب متاح (#{getNextFreeOrder(form.sort_order)})
+                    ⚡ اضغط هنا للانتقال لأقرب ترتيب متاح (#
+                    {getNextFreeOrder(form.sort_order)})
                   </button>
                 </div>
               )}

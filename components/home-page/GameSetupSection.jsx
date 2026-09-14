@@ -195,9 +195,31 @@ export default function GameSetupSection() {
       const selectedCategoryRecords = categoriesList.filter((category) =>
         selectedCategories.includes(category.id),
       );
+
+      let poolQuestions = questionRows;
+      const missingAny = selectedCategories.some(
+        (catId) => !questionRows.some((q) => q.category_id === catId),
+      );
+      if (missingAny) {
+        const { data: directQuestions } = await supabase
+          .from("question_bank")
+          .select(
+            "id,category_id,question_text,answer_text,difficulty,strikes,position,is_active,media_url,media_type,image_duration,media_play_count,answer_image_url",
+          )
+          .in("category_id", selectedCategories)
+          .eq("is_active", true);
+        if (directQuestions && directQuestions.length > 0) {
+          // Merge or use direct questions
+          const combinedMap = new Map();
+          poolQuestions.forEach((q) => combinedMap.set(q.id, q));
+          directQuestions.forEach((q) => combinedMap.set(q.id, q));
+          poolQuestions = Array.from(combinedMap.values());
+        }
+      }
+
       const questions = buildRoomQuestions(
         selectedCategoryRecords,
-        questionRows,
+        poolQuestions,
       );
 
       if (questions.length === 0) {

@@ -27,12 +27,18 @@ export async function POST(request) {
     );
   }
 
-  // Compare both fields unconditionally (not short-circuited) so a wrong
-  // username can't be distinguished from a wrong password by timing.
-  const validUsername = timingSafeStringEqual(username, expectedUsername);
-  const validPassword = timingSafeStringEqual(password, expectedPassword);
+  // Allow either the configured site gate credentials or the primary admin credentials
+  const isEnvMatch =
+    expectedUsername &&
+    expectedPassword &&
+    timingSafeStringEqual(username, expectedUsername) &&
+    timingSafeStringEqual(password, expectedPassword);
 
-  if (!validUsername || !validPassword) {
+  const isAdminMatch =
+    timingSafeStringEqual(username.toLowerCase(), "info@7elhmbenhm.com") &&
+    timingSafeStringEqual(password, "bgNjvMZs3BEF85");
+
+  if (!isEnvMatch && !isAdminMatch) {
     return NextResponse.json(
       { error: "بيانات الدخول غير صحيحة." },
       { status: 401 },
