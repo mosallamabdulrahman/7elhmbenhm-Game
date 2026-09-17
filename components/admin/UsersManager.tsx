@@ -1,0 +1,578 @@
+"use client";
+/* eslint-disable react-hooks/set-state-in-effect */
+
+import { useCallback, useEffect, useState } from "react";
+import {
+  Edit2,
+  Eye,
+  EyeOff,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Save,
+  Shield,
+  Trash2,
+  X,
+} from "lucide-react";
+import { supabasePanel as supabase } from "@/lib/supabase-panel";
+import { generatePassword } from "@/lib/auth";
+import { motion, AnimatePresence } from "motion/react";
+
+export interface AdminUser {
+  user_id: string;
+  email: string;
+  display_name: string;
+  created_at: string;
+}
+
+const callAdminUsersApi = async (path: string, method: string, body?: any) => {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error("لازم تسجل دخول الأول.");
+  }
+
+  const res = await fetch(path, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(json.error || "صار خطأ غير متوقع.");
+  }
+  return json;
+};
+
+interface UserModalProps {
+  user: AdminUser | null;
+  onSave: (form: { username: string; email: string; password: string }) => Promise<void>;
+  onClose: () => void;
+  busy: boolean;
+}
+
+function UserModal({ user, onSave, onClose, busy }: UserModalProps) {
+  const [form, setForm] = useState({
+    username: user?.display_name || "",
+    email: user?.email || "",
+    password: "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const isEdit = Boolean(user);
+  const canSave =
+    form.username.trim().length >= 2 &&
+    form.username.trim().length <= 40 &&
+    (isEdit || form.email.trim().length > 0) &&
+    (isEdit ? true : form.password.trim().length >= 6) &&
+    (form.password.trim().length === 0 || form.password.trim().length >= 6);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 p-4 overflow-y-auto"
+    >
+      <motion.div
+        initial={{ scale: 0.95, y: 15, opacity: 0 }}
+        animate={{ scale: 1, y: 0, opacity: 1 }}
+        exit={{ scale: 0.95, y: 15, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 350, damping: 25 }}
+        className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4 my-4"
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="font-bold text-slate-900">
+            {isEdit ? "تعديل مستخدم" : "مستخدم جديد"}
+          </h2>
+          <button type="button" onClick={onClose}>
+            <X className="h-5 w-5 text-slate-400" />
+          </button>
+        </div>
+
+        <div>
+          <label className="text-[11px] font-bold text-slate-500">
+            اسم المستخدم *
+          </label>
+          <input
+            value={form.username}
+            onChange={(e) => set("username", e.target.value)}
+            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            placeholder="اسم المستخدم"
+          />
+        </div>
+
+        <div>
+          <label className="text-[11px] font-bold text-slate-500">
+            الإيميل *
+          </label>
+          <input
+            type="email"
+            value={form.email}
+            onChange={(e) => set("email", e.target.value)}
+            disabled={isEdit}
+            className="text-right mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400"
+            dir="ltr"
+            placeholder="admin@example.com"
+          />
+          {isEdit && (
+            <p className="mt-1 text-[10px] text-slate-400">
+              ما تقدر تغيّر الإيميل بعد الإنشاء.
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="text-[11px] font-bold text-slate-500">
+            {isEdit ? "باسورد جديد" : "الباسورد *"}
+          </label>
+          {isEdit && (
+            <p className="mt-0.5 text-[10px] text-slate-400">
+              مفيش نظام يقدر يعرض الباسورد القديم (مشفّر ومحفوظ باتجاه واحد) —
+              سيب الخانة فاضية لو مش عايز تغيّره، أو اكتب باسورد جديد.
+            </p>
+          )}
+          <div className="mt-1 flex gap-2">
+            <div className="relative flex-1">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={form.password}
+                onChange={(e) => set("password", e.target.value)}
+                className="text-right w-full rounded-xl border border-slate-200 px-3 py-2 pl-9 text-sm"
+                dir="ltr"
+                placeholder={
+                  isEdit ? "اتركه فارغًا لعدم التغيير" : "باسورد قوي"
+                }
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowPassword(true);
+                set("password", generatePassword());
+              }}
+              title="ولّد باسورد قوي"
+              className="rounded-xl border border-slate-200 px-3 text-slate-500 hover:bg-slate-50"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          </div>
+          <p className="mt-1 text-[10px] text-slate-400">6 أحرف على الأقل.</p>
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <button
+            type="button"
+            onClick={() => onSave(form)}
+            disabled={busy || !canSave}
+            className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-cyan-600 py-3 text-sm font-bold text-white disabled:opacity-60 hover:bg-cyan-700 cursor-pointer"
+          >
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            حفظ
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+          >
+            إلغاء
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+interface UsersManagerProps {
+  notify: (msg: string, type?: "success" | "error" | "info") => void;
+}
+
+export default function UsersManager({ notify }: UsersManagerProps) {
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [modal, setModal] = useState<AdminUser | {} | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState("");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data?.user?.id || null);
+    });
+  }, []);
+
+  const selectableUsers = users.filter((u) => u.user_id !== currentUserId);
+  const isAllSelected =
+    selectableUsers.length > 0 &&
+    selectableUsers.every((u) => selectedIds.has(u.user_id));
+  const isSomeSelected =
+    !isAllSelected && selectableUsers.some((u) => selectedIds.has(u.user_id));
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(selectableUsers.map((u) => u.user_id)));
+    }
+  };
+
+  const handleToggleSelect = (userId: string) => {
+    if (userId === currentUserId) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const loadUsers = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase.rpc("admin_list_users");
+    if (error) {
+      notify(error.message, "error");
+    } else {
+      setUsers((data as AdminUser[]) || []);
+    }
+    setLoading(false);
+  }, [notify]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  const handleSave = async (form: { username: string; email: string; password: string }) => {
+    setBusy(true);
+    try {
+      if (modal && "user_id" in modal && modal.user_id) {
+        await callAdminUsersApi(`/api/admin/users/${modal.user_id}`, "PATCH", {
+          username: form.username.trim(),
+          password: form.password.trim() || undefined,
+        });
+        notify("تم تحديث المستخدم.");
+      } else {
+        await callAdminUsersApi("/api/admin/users", "POST", {
+          username: form.username.trim(),
+          email: form.email.trim(),
+          password: form.password.trim(),
+        });
+        notify("تم إنشاء المستخدم.");
+      }
+      setModal(null);
+      await loadUsers();
+    } catch (err: any) {
+      notify(err.message, "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDelete = async (user: AdminUser) => {
+    if (user.user_id === currentUserId) {
+      notify("ما تقدر تحذف حسابك الحالي.", "error");
+      return;
+    }
+    if (!window.confirm(`تحذف "${user.display_name}"؟ ما يرجع بعدها.`)) return;
+
+    setBusy(true);
+    try {
+      await callAdminUsersApi(`/api/admin/users/${user.user_id}`, "DELETE");
+      notify("تم حذف المستخدم.");
+      await loadUsers();
+    } catch (err: any) {
+      notify(err.message, "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleApplyBulkAction = async () => {
+    if (!bulkAction || selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    if (bulkAction === "delete") {
+      if (!window.confirm(`هل أنت متأكد من حذف ${ids.length} مستخدم؟`)) return;
+      setBusy(true);
+      try {
+        await callAdminUsersApi("/api/admin/users", "DELETE", { ids });
+        notify(`تم حذف ${ids.length} مستخدم بنجاح.`);
+        setSelectedIds(new Set());
+        setBulkAction("");
+        await loadUsers();
+      } catch (err: any) {
+        notify(err.message, "error");
+      } finally {
+        setBusy(false);
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-cyan-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <AnimatePresence>
+        {modal !== null && (
+          <UserModal
+            user={modal && "user_id" in modal ? (modal as AdminUser) : null}
+            onSave={handleSave}
+            onClose={() => setModal(null)}
+            busy={busy}
+          />
+        )}
+      </AnimatePresence>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => setModal({})}
+          className="bg-[#f6f7f7] border border-[#2271b1] hover:bg-[#2271b1] hover:text-white text-[#2271b1] text-xs font-semibold px-2.5 py-1 rounded transition shadow-sm flex items-center gap-1.5 cursor-pointer"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          أضف مستخدم جديد
+        </button>
+
+        {/* WordPress-style Bulk Actions Bar */}
+        <div className="flex flex-wrap items-center gap-2 bg-[#f6f7f7] border border-[#ccd0d4] rounded p-1.5 text-[13px]">
+          <select
+            value={bulkAction}
+            onChange={(e) => setBulkAction(e.target.value)}
+            className="border border-[#ccd0d4] bg-white rounded px-2.5 py-1 text-xs font-semibold text-slate-700 outline-none focus:border-[#2271b1] shadow-xs cursor-pointer"
+          >
+            <option value="">إجراءات جماعية</option>
+            <option value="delete">حذف</option>
+          </select>
+
+          <button
+            type="button"
+            disabled={busy || !bulkAction || selectedIds.size === 0}
+            onClick={handleApplyBulkAction}
+            className="bg-[#f6f7f7] border border-[#2271b1] hover:bg-[#2271b1] hover:text-white text-[#2271b1] text-xs font-semibold px-3 py-1 rounded transition shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            تطبيق
+          </button>
+
+          {selectedIds.size > 0 && (
+            <span className="text-xs font-bold text-slate-700 mr-2 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-2xs">
+              تم تحديد {selectedIds.size} من {selectableUsers.length}
+            </span>
+          )}
+
+          {selectedIds.size > 0 && (
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs text-rose-600 hover:text-rose-700 font-semibold cursor-pointer underline mr-auto"
+            >
+              إلغاء التحديد
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-[#f6f7f7] border-b border-slate-200">
+              <tr>
+                <th className="p-3 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    aria-label="تحديد كل المستخدمين"
+                    checked={isAllSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = isSomeSelected;
+                    }}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 rounded border-[#ccd0d4] text-[#2271b1] focus:ring-[#2271b1] cursor-pointer align-middle"
+                  />
+                </th>
+                <th className="p-3 text-right font-semibold text-slate-600">
+                  اسم المستخدم
+                </th>
+                <th className="p-3 text-right font-semibold text-slate-600">
+                  الإيميل
+                </th>
+                <th className="p-3 text-right font-semibold text-slate-600">
+                  تاريخ الإضافة
+                </th>
+                <th className="p-3 text-right font-semibold text-slate-600">
+                  إجراءات
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-6 text-center text-slate-400">
+                    لا يوجد مستخدمين.
+                  </td>
+                </tr>
+              ) : (
+                users.map((u) => (
+                  <tr
+                    key={u.user_id}
+                    className={`border-b border-slate-100 hover:bg-[#f6f7f7] transition-colors ${
+                      selectedIds.has(u.user_id) ? "bg-[#f0f6fc]" : ""
+                    }`}
+                  >
+                    <td className="p-3 w-10 text-center">
+                      {u.user_id !== currentUserId && (
+                        <input
+                          type="checkbox"
+                          aria-label="تحديد هذا المستخدم"
+                          checked={selectedIds.has(u.user_id)}
+                          onChange={() => handleToggleSelect(u.user_id)}
+                          className="w-4 h-4 rounded border-[#ccd0d4] text-[#2271b1] focus:ring-[#2271b1] cursor-pointer align-middle"
+                        />
+                      )}
+                    </td>
+                    <td className="p-3 font-semibold text-slate-800">
+                      <span className="inline-flex items-center gap-2">
+                        <Shield className="w-3.5 h-3.5 text-cyan-500" />
+                        {u.display_name}
+                        {u.user_id === currentUserId && (
+                          <span className="text-[10px] font-normal text-slate-400">
+                            (أنت)
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td className="p-3 text-slate-600 text-xs" dir="ltr">
+                      {u.email}
+                    </td>
+                    <td className="p-3 text-xs text-slate-500">
+                      {new Date(u.created_at).toLocaleDateString("ar-EG")}
+                    </td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setModal(u)}
+                          className="flex items-center gap-1 text-xs font-semibold text-cyan-600 hover:underline cursor-pointer"
+                        >
+                          <Edit2 className="w-3 h-3" /> تعديل
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(u)}
+                          disabled={busy}
+                          className="flex items-center gap-1 text-xs font-semibold text-rose-600 hover:underline disabled:opacity-50 cursor-pointer"
+                        >
+                          <Trash2 className="w-3 h-3" /> حذف
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards View */}
+        <div className="block md:hidden divide-y divide-slate-200">
+          {users.length === 0 ? (
+            <div className="p-6 text-center text-slate-400">
+              لا يوجد مستخدمين.
+            </div>
+          ) : (
+            users.map((u) => (
+              <div
+                key={u.user_id}
+                className={`p-4 space-y-2.5 ${
+                  selectedIds.has(u.user_id) ? "bg-[#f0f6fc]" : ""
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-bold text-slate-800 flex items-center gap-2">
+                    {u.user_id !== currentUserId && (
+                      <input
+                        type="checkbox"
+                        aria-label="تحديد هذا المستخدم"
+                        checked={selectedIds.has(u.user_id)}
+                        onChange={() => handleToggleSelect(u.user_id)}
+                        className="w-4 h-4 rounded border-[#ccd0d4] text-[#2271b1] focus:ring-[#2271b1] cursor-pointer shrink-0 align-middle"
+                      />
+                    )}
+                    <Shield className="w-4 h-4 text-cyan-500 shrink-0" />
+                    <span>{u.display_name}</span>
+                    {u.user_id === currentUserId && (
+                      <span className="text-[11px] font-medium text-cyan-600 bg-cyan-50 border border-cyan-200 px-1.5 py-0.5 rounded">
+                        (أنت)
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setModal(u)}
+                      className="text-xs font-semibold text-cyan-600 hover:underline cursor-pointer"
+                    >
+                      تعديل
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(u)}
+                      disabled={busy || u.user_id === currentUserId}
+                      className="text-xs font-semibold text-rose-600 hover:underline disabled:opacity-40 cursor-pointer"
+                    >
+                      حذف
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1 text-xs text-slate-500 pt-1 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-400">الإيميل:</span>
+                    <span className="text-slate-700 select-all" dir="ltr">
+                      {u.email}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-400">
+                      تاريخ الإضافة:
+                    </span>
+                    <span>
+                      {new Date(u.created_at).toLocaleDateString("ar-EG")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

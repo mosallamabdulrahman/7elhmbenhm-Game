@@ -2,14 +2,46 @@
 
 @theme {
   --font-sans: var(--font-cairo), "Cairo", system-ui, -apple-system, sans-serif;
+
+  /* 9 Core Brand Colors from Logo Color Palette */
+  --color-primary-blue: #1F9FF6;
+  --color-depth-blue: #0F74C5;
+  --color-dark-blue: #085BA0;
+  --color-lime-green: #C2E581;
+  --color-olive-green: #6F9050;
+  --color-soft-white: #F2F2F2;
+  --color-dark-slate: #20414B;
+  --color-support-blue: #60A9CE;
+  --color-support-green: #B4D7AC;
 }
 
 :root {
-  font-family: var(--font-cairo), "Cairo", system-ui, -apple-system, sans-serif;
+  --primary-blue: #1F9FF6;
+  --depth-blue: #0F74C5;
+  --dark-blue: #085BA0;
+  --lime-green: #C2E581;
+  --olive-green: #6F9050;
+  --soft-white: #F2F2F2;
+  --dark-slate: #20414B;
+  --support-blue: #60A9CE;
+  --support-green: #B4D7AC;
+  font-family:
+    var(--font-cairo),
+    "Cairo",
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 
-html, body {
-  font-family: var(--font-cairo), "Cairo", system-ui, -apple-system, sans-serif;
+html,
+body {
+  font-family:
+    var(--font-cairo),
+    "Cairo",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background-color: #FCFDFF;
   touch-action: pan-x pan-y pinch-zoom;
   -webkit-text-size-adjust: 100%;
 }

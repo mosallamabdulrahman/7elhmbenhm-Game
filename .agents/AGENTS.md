@@ -8,3 +8,5 @@
 
 3. **Git & GitHub Commits/Push**:
    - NEVER run `git push` or push changes to GitHub. The user will handle all Git pushes themselves.
+
+4. **Restricted Tailwind Classes**: NEVER use `font-black`, `font-extrabold`, or `font-mono` classes in any generated code, components, or UI suggestions unless the user explicitly includes or requests them first.
