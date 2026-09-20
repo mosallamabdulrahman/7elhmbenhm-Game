@@ -466,7 +466,9 @@ export default function QuestionModal({
                       media_url: url,
                       media_type: type,
                       image_duration:
-                        type === "image" ? f.image_duration : null,
+                        type === "image" || f.show_question_first
+                          ? f.image_duration
+                          : null,
                       media_play_count:
                         type === "audio" || type === "video"
                           ? f.media_play_count
@@ -490,7 +492,7 @@ export default function QuestionModal({
                             ظهور الميديا أولاً
                           </span>
                         </label>
-                        {isImageMedia && (
+                        {(isImageMedia || form.show_question_first) && (
                           <div className="flex items-center gap-1.5 bg-cyan-50/70 border border-cyan-100 rounded-xl px-2.5 py-1">
                             <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1 whitespace-nowrap">
                               <Timer className="h-3.5 w-3.5 text-cyan-600" />

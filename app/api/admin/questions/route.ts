@@ -54,6 +54,7 @@ export async function POST(request: Request) {
       media_play_count,
       answer_image_url,
       timer_seconds,
+      show_question_first,
     } = body;
 
     if (!category_id) {
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
     const diff = (difficulty || "easy").toLowerCase();
     const points = diff === "hard" ? 600 : diff === "medium" ? 400 : 200;
 
-    const payload = {
+    const payload: any = {
       category_id: String(category_id),
       question_text: (question_text || "").trim(),
       answer_text: (answer_text || "").trim(),
@@ -80,6 +81,7 @@ export async function POST(request: Request) {
       image_duration: image_duration ? Number(image_duration) : null,
       media_play_count: media_play_count ? Number(media_play_count) : null,
       answer_image_url: answer_image_url ? answer_image_url.trim() : null,
+      show_question_first: Boolean(show_question_first),
       timer_seconds:
         timer_seconds !== undefined &&
         timer_seconds !== null &&
@@ -91,21 +93,56 @@ export async function POST(request: Request) {
 
     const supabaseAdmin = getSupabaseAdmin();
 
+    const isSchemaColumnError = (err: any) =>
+      err &&
+      (err.code === "42703" ||
+        err.code === "PGRST204" ||
+        err.message?.includes("show_question_first"));
+
     if (!id) {
-      const { data, error } = await supabaseAdmin
+      let { data, error } = await supabaseAdmin
         .from("question_bank")
         .insert(payload)
         .select()
         .single();
+
+      if (isSchemaColumnError(error)) {
+        console.warn("question_bank missing show_question_first column, retrying without it");
+        const fallbackPayload = { ...payload };
+        delete fallbackPayload.show_question_first;
+        const retry = await supabaseAdmin
+          .from("question_bank")
+          .insert(fallbackPayload)
+          .select()
+          .single();
+        data = retry.data;
+        error = retry.error;
+      }
+
       if (error) throw error;
       return NextResponse.json({ ok: true, question: data });
     } else {
-      const { data, error } = await supabaseAdmin
+      let { data, error } = await supabaseAdmin
         .from("question_bank")
         .update(payload)
         .eq("id", id)
         .select()
         .single();
+
+      if (isSchemaColumnError(error)) {
+        console.warn("question_bank missing show_question_first column, retrying without it");
+        const fallbackPayload = { ...payload };
+        delete fallbackPayload.show_question_first;
+        const retry = await supabaseAdmin
+          .from("question_bank")
+          .update(fallbackPayload)
+          .eq("id", id)
+          .select()
+          .single();
+        data = retry.data;
+        error = retry.error;
+      }
+
       if (error) throw error;
       return NextResponse.json({ ok: true, question: data });
     }

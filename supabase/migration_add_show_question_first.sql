@@ -1,0 +1,197 @@
+-- Migration: Add show_question_first, image_duration, and media_play_count to question_bank and room_questions
+
+-- 1. Ensure columns exist on question_bank
+ALTER TABLE public.question_bank 
+ADD COLUMN IF NOT EXISTS show_question_first boolean DEFAULT false;
+
+-- 2. Ensure columns exist on room_questions
+ALTER TABLE public.room_questions 
+ADD COLUMN IF NOT EXISTS show_question_first boolean DEFAULT false,
+ADD COLUMN IF NOT EXISTS image_duration integer DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS media_play_count integer DEFAULT NULL;
+
+-- 3. Backfill existing room_questions from question_bank
+UPDATE public.room_questions rq
+SET 
+  show_question_first = coalesce(qb.show_question_first, false),
+  image_duration = qb.image_duration,
+  media_play_count = qb.media_play_count
+FROM public.question_bank qb
+WHERE rq.question_bank_id = qb.id;
+
+-- 4. Update create_game_room function to accept and insert show_question_first & image_duration
+CREATE OR REPLACE FUNCTION public.create_game_room(
+  p_game_name text,
+  p_team_1_name text,
+  p_team_2_name text,
+  p_selected_categories jsonb,
+  p_questions jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+declare
+  v_room_id uuid;
+  v_team_1_id uuid;
+  v_team_2_id uuid;
+  v_token_1 uuid;
+  v_token_2 uuid;
+  v_question_id uuid;
+  v_question record;
+  v_fixed_tools text[] := array['radar_scan', 'shield', 'extra_strike'];
+begin
+  insert into public.game_rooms (
+    game_name, status, active_screen, current_turn, selected_categories
+  )
+  values (
+    trim(p_game_name), 'waiting', 'waiting', 1, p_selected_categories
+  )
+  returning id into v_room_id;
+
+  insert into public.teams (room_id, team_index, team_name, score, balance, available_tools)
+  values (v_room_id, 1, trim(p_team_1_name), 4000, 1000, v_fixed_tools)
+  returning id into v_team_1_id;
+
+  insert into public.teams (room_id, team_index, team_name, score, balance, available_tools)
+  values (v_room_id, 2, trim(p_team_2_name), 4000, 1000, v_fixed_tools)
+  returning id into v_team_2_id;
+
+  insert into public.team_access_tokens (team_id) values (v_team_1_id)
+  returning access_token into v_token_1;
+  insert into public.team_access_tokens (team_id) values (v_team_2_id)
+  returning access_token into v_token_2;
+
+  insert into public.team_boards (team_id, board)
+  select t.id, (select jsonb_agg(null::jsonb) from generate_series(1, 36))
+  from public.teams t
+  where t.room_id = v_room_id;
+
+  for v_question in
+    select *
+    from jsonb_to_recordset(p_questions) as q(
+      category_id text, category_name text, question_text text, answer_text text,
+      difficulty text, strikes integer, points integer, position integer,
+      media_url text, media_type text, answer_image_url text, question_bank_id uuid,
+      timer_seconds integer, image_duration integer, media_play_count integer,
+      show_question_first boolean
+    )
+  loop
+    insert into public.room_questions (
+      room_id, category_id, category_name, question_text, difficulty,
+      strikes, points, position, media_url, media_type, question_bank_id,
+      timer_seconds, image_duration, media_play_count, show_question_first
+    )
+    values (
+      v_room_id, v_question.category_id, v_question.category_name,
+      v_question.question_text, v_question.difficulty, v_question.strikes,
+      v_question.points, v_question.position, v_question.media_url, v_question.media_type,
+      v_question.question_bank_id,
+      coalesce(v_question.timer_seconds, 60),
+      v_question.image_duration,
+      v_question.media_play_count,
+      coalesce(v_question.show_question_first, false)
+    )
+    returning id into v_question_id;
+
+    insert into public.room_question_answers (question_id, answer_text, answer_image_url, timer_seconds)
+    values (v_question_id, v_question.answer_text, v_question.answer_image_url, coalesce(v_question.timer_seconds, 60));
+  end loop;
+
+  return jsonb_build_object(
+    'room_id', v_room_id,
+    'team_1_token', v_token_1,
+    'team_2_token', v_token_2
+  );
+end;
+$function$;
+
+-- 5. Update restart_game_room function to copy show_question_first & image_duration
+CREATE OR REPLACE FUNCTION public.restart_game_room(
+  p_source_room_id uuid,
+  p_team_1_name text,
+  p_team_2_name text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+declare
+  v_source game_rooms%rowtype;
+  v_room_id uuid;
+  v_team_1_id uuid;
+  v_team_2_id uuid;
+  v_token_1 uuid;
+  v_token_2 uuid;
+  v_question_id uuid;
+  v_src_question record;
+  v_fixed_tools text[] := array['radar_scan', 'shield', 'extra_strike'];
+begin
+  select * into v_source from public.game_rooms where id = p_source_room_id;
+  if not found then
+    raise exception 'الغرفة الأصلية غير موجودة';
+  end if;
+
+  insert into public.game_rooms (
+    game_name, status, active_screen, current_turn, selected_categories
+  )
+  values (
+    v_source.game_name, 'waiting', 'waiting', 1, v_source.selected_categories
+  )
+  returning id into v_room_id;
+
+  insert into public.teams (room_id, team_index, team_name, score, balance, available_tools)
+  values (v_room_id, 1, trim(p_team_1_name), 4000, 1000, v_fixed_tools)
+  returning id into v_team_1_id;
+
+  insert into public.teams (room_id, team_index, team_name, score, balance, available_tools)
+  values (v_room_id, 2, trim(p_team_2_name), 4000, 1000, v_fixed_tools)
+  returning id into v_team_2_id;
+
+  insert into public.team_access_tokens (team_id) values (v_team_1_id)
+  returning access_token into v_token_1;
+  insert into public.team_access_tokens (team_id) values (v_team_2_id)
+  returning access_token into v_token_2;
+
+  insert into public.team_boards (team_id, board)
+  select t.id, (select jsonb_agg(null::jsonb) from generate_series(1, 36))
+  from public.teams t
+  where t.room_id = v_room_id;
+
+  for v_src_question in
+    select rq.*, rqa.answer_text, rqa.answer_image_url
+    from public.room_questions rq
+    left join public.room_question_answers rqa on rqa.question_id = rq.id
+    where rq.room_id = p_source_room_id
+    order by rq.position
+  loop
+    insert into public.room_questions (
+      room_id, category_id, category_name, question_text, difficulty,
+      strikes, points, position, media_url, media_type, question_bank_id,
+      timer_seconds, image_duration, media_play_count, show_question_first
+    )
+    values (
+      v_room_id, v_src_question.category_id, v_src_question.category_name,
+      v_src_question.question_text, v_src_question.difficulty, v_src_question.strikes,
+      v_src_question.points, v_src_question.position, v_src_question.media_url,
+      v_src_question.media_type, v_src_question.question_bank_id,
+      coalesce(v_src_question.timer_seconds, 60),
+      v_src_question.image_duration,
+      v_src_question.media_play_count,
+      coalesce(v_src_question.show_question_first, false)
+    )
+    returning id into v_question_id;
+
+    insert into public.room_question_answers (question_id, answer_text, answer_image_url, timer_seconds)
+    values (v_question_id, v_src_question.answer_text, v_src_question.answer_image_url, coalesce(v_src_question.timer_seconds, 60));
+  end loop;
+
+  return jsonb_build_object(
+    'room_id', v_room_id,
+    'team_1_token', v_token_1,
+    'team_2_token', v_token_2
+  );
+end;
+$function$;

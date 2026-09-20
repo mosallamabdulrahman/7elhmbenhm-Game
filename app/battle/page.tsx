@@ -510,14 +510,55 @@ function BattlePageInner() {
       }
       setCategoryInfoMap(newCategoryInfoMap);
 
+      // Enrich with question_bank details to guarantee show_question_first and image_duration
+      const bankIds = [
+        ...new Set(
+          (questionData || [])
+            .map((q) => q.question_bank_id)
+            .filter(Boolean),
+        ),
+      ];
+      let bankQuestionMap = new Map();
+      if (bankIds.length > 0) {
+        try {
+          const { data: bankData } = await supabase
+            .from("question_bank")
+            .select("id,show_question_first,image_duration,media_play_count")
+            .in("id", bankIds);
+          if (bankData) {
+            bankQuestionMap = new Map(bankData.map((b) => [b.id, b]));
+          }
+        } catch (e) {
+          console.warn("Could not enrich from question_bank:", e);
+        }
+      }
+
       setQuestions(
-        (questionData || []).map((question) => ({
-          ...question,
-          category_image_url:
-            categoryImageMap.get(question.category_id) ||
-            question.category_image_url ||
-            "",
-        })),
+        (questionData || []).map((question) => {
+          const bank = bankQuestionMap.get(question.question_bank_id);
+          return {
+            ...question,
+            show_question_first:
+              question.show_question_first !== undefined &&
+              question.show_question_first !== null
+                ? Boolean(question.show_question_first)
+                : Boolean(bank?.show_question_first),
+            image_duration:
+              question.image_duration !== undefined &&
+              question.image_duration !== null
+                ? question.image_duration
+                : (bank?.image_duration ?? null),
+            media_play_count:
+              question.media_play_count !== undefined &&
+              question.media_play_count !== null
+                ? question.media_play_count
+                : (bank?.media_play_count ?? null),
+            category_image_url:
+              categoryImageMap.get(question.category_id) ||
+              question.category_image_url ||
+              "",
+          };
+        }),
       );
 
       const { data: eventData, error: eventError } = await supabase

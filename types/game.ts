@@ -80,6 +80,7 @@ export interface Question {
   media_type?: MediaType;
   image_duration?: number | null;
   media_play_count?: number | null;
+  show_question_first?: boolean;
   points?: number;
   strikes?: number;
   time_seconds?: number;

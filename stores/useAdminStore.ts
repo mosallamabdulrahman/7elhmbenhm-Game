@@ -513,7 +513,7 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
         media_url: mediaUrl,
         media_type: mediaType,
         image_duration:
-          mediaType === "image"
+          mediaType === "image" || showQuestionFirst
             ? normalizePositiveInt(form.image_duration, 600)
             : null,
         media_play_count:
@@ -521,6 +521,7 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
             ? normalizePositiveInt(form.media_play_count, 20)
             : null,
         answer_image_url: form.answer_image_url?.trim() || null,
+        show_question_first: showQuestionFirst,
         timer_seconds: form.timer_seconds ? Number(form.timer_seconds) : 60,
       };
 
