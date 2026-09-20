@@ -3,40 +3,42 @@
 import { useState, useMemo, useRef } from "react";
 import { motion } from "motion/react";
 import { ChevronDown, ChevronUp, Search } from "lucide-react";
+import { useAdminStore } from "@/stores/useAdminStore";
 
 interface CategoriesTabProps {
-  categories: any[];
-  filteredCategories: any[];
+  categories?: any[];
+  filteredCategories?: any[];
   groups?: any[];
-  questions: any[];
-  categoryUsage: Record<string, number>;
-  busy: boolean;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  setCatModal: (cat: any) => void;
-  deleteCategory: (id: string, name?: string) => void;
-  statusEditFor: string | null;
-  setStatusEditFor: React.Dispatch<React.SetStateAction<string | null>>;
-  onInlineStatusChange: (id: string, isActive: boolean) => void;
+  questions?: any[];
+  categoryUsage?: Record<string, number>;
+  busy?: boolean;
+  searchQuery?: string;
+  setSearchQuery?: (query: string) => void;
+  setCatModal?: (cat: any) => void;
+  deleteCategory?: (id: string, name?: string) => void;
+  statusEditFor?: string | null;
+  setStatusEditFor?: (idOrFn: string | null | ((prev: string | null) => string | null)) => void;
+  onInlineStatusChange?: (id: string, isActive: boolean) => void;
   onBulkAction?: (actionData: any) => Promise<void>;
 }
 
-export default function CategoriesTab({
-  categories,
-  filteredCategories,
-  groups = [],
-  questions,
-  categoryUsage,
-  busy,
-  searchQuery,
-  setSearchQuery,
-  setCatModal,
-  deleteCategory,
-  statusEditFor,
-  setStatusEditFor,
-  onInlineStatusChange,
-  onBulkAction,
-}: CategoriesTabProps) {
+export default function CategoriesTab(props: CategoriesTabProps) {
+  const store = useAdminStore();
+
+  const categories = props.categories ?? store.categories;
+  const filteredCategories = props.filteredCategories ?? store.getFilteredCategories();
+  const groups = props.groups ?? store.groups;
+  const questions = props.questions ?? store.questions;
+  const categoryUsage = props.categoryUsage ?? store.categoryUsage;
+  const busy = props.busy ?? store.busy;
+  const searchQuery = props.searchQuery ?? store.searchQuery;
+  const setSearchQuery = props.setSearchQuery ?? store.setSearchQuery;
+  const setCatModal = props.setCatModal ?? store.setCatModal;
+  const deleteCategory = props.deleteCategory ?? store.deleteCategory;
+  const statusEditFor = props.statusEditFor ?? store.categoryStatusEditFor;
+  const setStatusEditFor = props.setStatusEditFor ?? store.setCategoryStatusEditFor;
+  const onInlineStatusChange = props.onInlineStatusChange ?? store.handleInlineCategoryStatusChange;
+  const onBulkAction = props.onBulkAction ?? store.handleBulkCategories;
   const [expandedIds, setExpandedIds] = useState(new Set<string>());
   const [selectedIds, setSelectedIds] = useState(new Set<string>());
   const [bulkAction, setBulkAction] = useState("");

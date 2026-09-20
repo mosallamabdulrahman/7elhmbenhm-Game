@@ -99,21 +99,37 @@ export default async function WlaKelmaPage({ params }: PageProps) {
               {answerText}
             </h1>
 
-            {/* Poster / Secret Image */}
+            {/* Poster / Secret Media */}
             {answerImageUrl ? (
               <div className="w-full flex justify-center">
-                <div className="relative w-full max-w-sm rounded-2xl overflow-hidden shadow-md border border-slate-200/80 bg-slate-50 flex items-center justify-center">
-                  <img
-                    src={answerImageUrl}
-                    alt={answerText || "صورة ولا كلمة"}
-                    className="w-full h-auto max-h-[62vh] object-contain mx-auto rounded-2xl"
-                    loading="eager"
-                  />
+                <div className="relative w-full max-w-sm rounded-2xl overflow-hidden shadow-md border border-slate-200/80 bg-slate-50 flex items-center justify-center p-2">
+                  {answerImageUrl.match(/\.(mp3|wav|ogg|m4a)($|\?)/i) ? (
+                    <audio
+                      controls
+                      src={answerImageUrl}
+                      className="w-full h-12 rounded-xl my-4"
+                      autoPlay
+                    />
+                  ) : answerImageUrl.match(/\.(mp4|webm|mov|m4v)($|\?)/i) ? (
+                    <video
+                      controls
+                      src={answerImageUrl}
+                      className="w-full h-auto max-h-[62vh] object-contain mx-auto rounded-2xl bg-black"
+                      autoPlay
+                    />
+                  ) : (
+                    <img
+                      src={answerImageUrl}
+                      alt={answerText || "ميديا ولا كلمة"}
+                      className="w-full h-auto max-h-[62vh] object-contain mx-auto rounded-2xl"
+                      loading="eager"
+                    />
+                  )}
                 </div>
               </div>
             ) : (
               <div className="w-full p-8 rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-slate-400 text-xs font-bold">
-                لا توجد صورة مخصصة لهذا السؤال
+                لا توجد ميديا مخصصة لهذا السؤال
               </div>
             )}
           </div>

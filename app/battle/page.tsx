@@ -1109,10 +1109,6 @@ function BattlePageInner() {
           ? 2
           : 1;
 
-      // 0. Mark this strike immediately in the deduplication set & play single hit sound instantly on click
-      markStrikeAsPlayed(targetTeamIndex, cellIndex);
-      playActionHitSound();
-
       // 1. Optimistic event: immediately lock and mark the cell locally
       const tempId = `optimistic-strike-${targetTeamIndex}-${cellIndex}`;
       const optimisticEvent: CombatEvent = {

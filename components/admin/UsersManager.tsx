@@ -204,11 +204,15 @@ function UserModal({ user, onSave, onClose, busy }: UserModalProps) {
   );
 }
 
+import { useAdminStore } from "@/stores/useAdminStore";
+
 interface UsersManagerProps {
-  notify: (msg: string, type?: "success" | "error" | "info") => void;
+  notify?: (msg: string, type?: "success" | "error" | "info") => void;
 }
 
-export default function UsersManager({ notify }: UsersManagerProps) {
+export default function UsersManager(props: UsersManagerProps) {
+  const storeNotify = useAdminStore((s) => s.notify);
+  const notify = props.notify ?? storeNotify;
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);

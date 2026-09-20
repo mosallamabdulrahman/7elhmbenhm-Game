@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Play } from "lucide-react";
+import { Play, Timer, FastForward } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { MediaPlayer } from "../CombatShared";
 import { TimerPill } from "./TimerPill";
@@ -52,6 +52,59 @@ export function ActiveQuestionView({
 }: ActiveQuestionViewProps) {
   if (!activeQuestion) return null;
 
+  // "ظهور الميديا أولاً" (Media First Option):
+  // If activeQuestion.show_question_first is true and activeQuestion.media_url is present,
+  // show media first, hide question text, count down for image_duration seconds.
+  // Once the duration is over, hide media, show question text, and resume normal question flow.
+  const isMediaFirst = Boolean(
+    activeQuestion.show_question_first && activeQuestion.media_url
+  );
+  const mediaDuration =
+    Number(activeQuestion.image_duration) > 0
+      ? Number(activeQuestion.image_duration)
+      : 5;
+
+  const [mediaPhaseActive, setMediaPhaseActive] = useState(() => isMediaFirst);
+  const [mediaCountdown, setMediaCountdown] = useState(() => mediaDuration);
+
+  useEffect(() => {
+    if (!isMediaFirst) {
+      setMediaPhaseActive(false);
+      return;
+    }
+    setMediaPhaseActive(true);
+    setMediaCountdown(mediaDuration);
+
+    const interval = setInterval(() => {
+      setMediaCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setMediaPhaseActive(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [activeQuestion.id, isMediaFirst, mediaDuration]);
+
+  // Pause the main question countdown while media is showing first, then resume/reset when question appears
+  useEffect(() => {
+    if (isMediaFirst && mediaPhaseActive) {
+      onPauseTimer?.();
+    } else if (isMediaFirst && !mediaPhaseActive) {
+      onResetTimer?.();
+      onResumeTimer?.();
+    }
+  }, [isMediaFirst, mediaPhaseActive]);
+
+  const isWlaKelma =
+    activeQuestion.category_name === "ولا كلمة" ||
+    activeQuestion.category_name?.includes("ولا كلمة") ||
+    activeQuestion.group_name === "ولا كلمة" ||
+    activeQuestion.category_id === "wla_kelma";
+
   return (
     <AnimatePresence mode="wait">
       {step === "question" && (
@@ -85,10 +138,7 @@ export function ActiveQuestionView({
             نقطة
           </span>
 
-          {activeQuestion.category_name === "ولا كلمة" ||
-          activeQuestion.category_name?.includes("ولا كلمة") ||
-          activeQuestion.group_name === "ولا كلمة" ||
-          activeQuestion.category_id === "wla_kelma" ? (
+          {isWlaKelma ? (
             <div className="flex flex-col items-center justify-center w-full py-1 sm:py-3">
               <div className="w-full max-w-2xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-10 pb-4">
                 {/* Rules Pills Stack */}
@@ -139,36 +189,72 @@ export function ActiveQuestionView({
                 </div>
               </div>
             </div>
-          ) : (
-            <>
-              <h2 className="text-lg sm:text-2xl md:text-3xl font-bold text-slate-950 leading-relaxed px-2">
-                {activeQuestion.question_text}
-              </h2>
-              {activeQuestion.media_url &&
-                (activeQuestion.show_question_first && !mediaRevealed ? (
-                  <div className="mt-6 flex flex-col items-center justify-center">
-                    <button
-                      type="button"
-                      onClick={onMediaReveal}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-500 hover:to-sky-500 active:scale-95 px-6 py-3 text-sm sm:text-base font-bold text-white shadow-lg shadow-cyan-600/25 transition-all duration-200 cursor-pointer"
-                    >
-                      <Play className="h-5 w-5 fill-white" />
-                      <span>عرض الوسائط</span>
-                    </button>
-                    <p className="mt-2 text-xs font-semibold text-slate-400">
-                      (نص السؤال يظهر أولاً — اضغط لعرض الوسائط)
-                    </p>
+          ) : isMediaFirst ? (
+            mediaPhaseActive ? (
+              // PHASE 1: MEDIA FIRST
+              <div className="flex flex-col items-center justify-center space-y-4">
+                {/* Media Countdown Banner */}
+                <div className="flex items-center justify-between gap-4 w-full max-w-xl mx-auto bg-amber-500/10 border border-amber-500/30 text-amber-900 px-4 py-2 rounded-2xl shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <Timer className="w-5 h-5 text-amber-600 animate-pulse" />
+                    <span className="text-xs sm:text-sm font-bold">
+                      انتبه للميديا المعروضة... يظهر السؤال بعد:
+                    </span>
                   </div>
-                ) : (
+                  <span className="bg-amber-600 text-white font-bold px-3 py-0.5 rounded-xl text-sm sm:text-base">
+                    {mediaCountdown} ث
+                  </span>
+                </div>
+
+                {/* The Media Player */}
+                <div className="w-full">
                   <MediaPlayer
                     key={activeQuestion.id}
                     mediaUrl={activeQuestion.media_url}
                     mediaType={activeQuestion.media_type}
-                    imageDuration={activeQuestion.image_duration}
+                    imageDuration={null}
                     mediaPlayCount={activeQuestion.media_play_count}
                     onImageClick={onExpandImage}
                   />
-                ))}
+                </div>
+
+                {/* Skip button for referee */}
+                <button
+                  type="button"
+                  onClick={() => setMediaPhaseActive(false)}
+                  className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-cyan-700 font-bold hover:underline transition cursor-pointer pt-1"
+                >
+                  <FastForward className="w-3.5 h-3.5" />
+                  <span>تخطي عرض الميديا وإظهار السؤال فوراً</span>
+                </button>
+              </div>
+            ) : (
+              // PHASE 2: MEDIA EXPIRED / QUESTION TEXT ONLY
+              <div className="space-y-4 py-4">
+                <h2 className="text-lg sm:text-2xl md:text-3xl font-bold text-slate-950 leading-relaxed px-2">
+                  {activeQuestion.question_text}
+                </h2>
+                <div className="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 text-slate-500 text-[11px] font-semibold px-3 py-1 rounded-full">
+                  <span>انتهى وقت الميديا وبدأ وقت الإجابة ⏱️</span>
+                </div>
+              </div>
+            )
+          ) : (
+            // STANDARD QUESTION (Media First is false)
+            <>
+              <h2 className="text-lg sm:text-2xl md:text-3xl font-bold text-slate-950 leading-relaxed px-2">
+                {activeQuestion.question_text}
+              </h2>
+              {activeQuestion.media_url && (
+                <MediaPlayer
+                  key={activeQuestion.id}
+                  mediaUrl={activeQuestion.media_url}
+                  mediaType={activeQuestion.media_type}
+                  imageDuration={activeQuestion.image_duration}
+                  mediaPlayCount={activeQuestion.media_play_count}
+                  onImageClick={onExpandImage}
+                />
+              )}
             </>
           )}
 
@@ -200,13 +286,31 @@ export function ActiveQuestionView({
           <div className="text-base sm:text-xl md:text-2xl font-bold text-slate-900 leading-relaxed">
             {answerText || "قاعدين نحمل الإجابة..."}
             {answerImageUrl && (
-              <img
-                src={answerImageUrl}
-                alt="صورة الإجابة"
-                className="mt-4 max-h-64 object-contain rounded-xl mx-auto cursor-pointer hover:opacity-90 active:scale-[0.99] transition shadow-sm"
-                onClick={() => onExpandImage(answerImageUrl)}
-                title="اضغط لتكبير الصورة"
-              />
+              <div className="mt-4 flex justify-center">
+                {answerImageUrl.match(/\.(mp3|wav|ogg|m4a)($|\?)/i) ? (
+                  <audio
+                    controls
+                    src={answerImageUrl}
+                    className="w-full max-w-md mx-auto my-2 rounded-xl shadow-sm"
+                    autoPlay
+                  />
+                ) : answerImageUrl.match(/\.(mp4|webm|mov|m4v)($|\?)/i) ? (
+                  <video
+                    controls
+                    src={answerImageUrl}
+                    className="max-h-72 w-full max-w-xl mx-auto rounded-2xl border border-slate-200 bg-black object-contain shadow-md my-2"
+                    autoPlay
+                  />
+                ) : (
+                  <img
+                    src={answerImageUrl}
+                    alt="ميديا الإجابة"
+                    className="mt-4 max-h-64 object-contain rounded-xl mx-auto cursor-pointer hover:opacity-90 active:scale-[0.99] transition shadow-sm"
+                    onClick={() => onExpandImage(answerImageUrl)}
+                    title="اضغط لتكبير الصورة"
+                  />
+                )}
+              </div>
             )}
           </div>
 

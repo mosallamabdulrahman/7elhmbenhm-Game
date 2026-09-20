@@ -9,54 +9,56 @@ import { BulkActionBar } from "./questions/BulkActionBar";
 import { QuestionsPagination } from "./questions/QuestionsPagination";
 import { QuestionTableRow } from "./questions/QuestionTableRow";
 import { QuestionMobileCard } from "./questions/QuestionMobileCard";
+import { useAdminStore } from "@/stores/useAdminStore";
 
 interface QuestionsTabProps {
-  categories: any[];
-  categoryMap: Record<string, any>;
-  questions: any[];
-  filteredQuestions: any[];
-  questionStats: Record<string, any>;
-  filterCategory: string;
-  setFilterCategory: (cat: string) => void;
-  filterDifficulty: string;
-  setFilterDifficulty: (diff: string) => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  busy: boolean;
-  setQModal: (q: any) => void;
-  deleteQuestion: (id: string) => void;
-  difficultyEditFor: string | null;
-  setDifficultyEditFor: React.Dispatch<React.SetStateAction<string | null>>;
-  onInlineDifficultyChange: (q: any, level: string) => void;
-  statusEditFor: string | null;
-  setStatusEditFor: React.Dispatch<React.SetStateAction<string | null>>;
-  onInlineStatusChange: (q: any, isActive: boolean) => void;
+  categories?: any[];
+  categoryMap?: Record<string, any>;
+  questions?: any[];
+  filteredQuestions?: any[];
+  questionStats?: Record<string, any>;
+  filterCategory?: string;
+  setFilterCategory?: (cat: string) => void;
+  filterDifficulty?: string;
+  setFilterDifficulty?: (diff: string) => void;
+  searchQuery?: string;
+  setSearchQuery?: (query: string) => void;
+  busy?: boolean;
+  setQModal?: (q: any) => void;
+  deleteQuestion?: (id: string) => void;
+  difficultyEditFor?: string | null;
+  setDifficultyEditFor?: (val: React.SetStateAction<string | null>) => void;
+  onInlineDifficultyChange?: (q: any, level: string) => void;
+  statusEditFor?: string | null;
+  setStatusEditFor?: (val: React.SetStateAction<string | null>) => void;
+  onInlineStatusChange?: (q: any, isActive: boolean) => void;
   onBulkAction?: (actionData: any) => Promise<void>;
 }
 
-export default function QuestionsTab({
-  categories,
-  categoryMap,
-  questions,
-  filteredQuestions,
-  questionStats,
-  filterCategory,
-  setFilterCategory,
-  filterDifficulty,
-  setFilterDifficulty,
-  searchQuery,
-  setSearchQuery,
-  busy,
-  setQModal,
-  deleteQuestion,
-  difficultyEditFor,
-  setDifficultyEditFor,
-  onInlineDifficultyChange,
-  statusEditFor,
-  setStatusEditFor,
-  onInlineStatusChange,
-  onBulkAction,
-}: QuestionsTabProps) {
+export default function QuestionsTab(props: QuestionsTabProps) {
+  const store = useAdminStore();
+
+  const categories = props.categories ?? store.categories;
+  const categoryMap = props.categoryMap ?? store.getCategoryMap();
+  const questions = props.questions ?? store.questions;
+  const filteredQuestions = props.filteredQuestions ?? store.getFilteredQuestions();
+  const questionStats = props.questionStats ?? store.questionStats;
+  const filterCategory = props.filterCategory ?? store.filterCategory;
+  const setFilterCategory = props.setFilterCategory ?? store.setFilterCategory;
+  const filterDifficulty = props.filterDifficulty ?? store.filterDifficulty;
+  const setFilterDifficulty = props.setFilterDifficulty ?? store.setFilterDifficulty;
+  const searchQuery = props.searchQuery ?? store.searchQuery;
+  const setSearchQuery = props.setSearchQuery ?? store.setSearchQuery;
+  const busy = props.busy ?? store.busy;
+  const setQModal = props.setQModal ?? store.setQModal;
+  const deleteQuestion = props.deleteQuestion ?? store.deleteQuestion;
+  const difficultyEditFor = props.difficultyEditFor ?? store.difficultyEditFor;
+  const setDifficultyEditFor = props.setDifficultyEditFor ?? store.setDifficultyEditFor;
+  const onInlineDifficultyChange = props.onInlineDifficultyChange ?? store.handleInlineDifficultyChange;
+  const statusEditFor = props.statusEditFor ?? store.statusEditFor;
+  const setStatusEditFor = props.setStatusEditFor ?? store.setStatusEditFor;
+  const onInlineStatusChange = props.onInlineStatusChange ?? store.handleInlineStatusChange;
+  const onBulkAction = props.onBulkAction ?? store.handleBulkQuestions;
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState("");

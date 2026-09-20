@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import GameLogo from "@/components/common/GameLogo";
 import { useAdminNav } from "@/components/admin/AdminNavContext";
+import { useAdminStore } from "@/stores/useAdminStore";
+import type { AdminTab } from "@/types/admin";
 
 const NAV_ITEMS = [
   { key: "dashboard", label: "الرئيسية", icon: LayoutDashboard },
@@ -28,20 +30,23 @@ const NAV_ITEMS = [
 ];
 
 interface AdminSidebarProps {
-  tab: string;
-  setTab: (tab: string) => void;
+  tab?: string;
+  setTab?: (tab: any) => void;
   unreadSupportCount?: number;
 }
 
-export default function AdminSidebar({
-  tab,
-  setTab,
-  unreadSupportCount = 0,
-}: AdminSidebarProps) {
+export default function AdminSidebar(props: AdminSidebarProps) {
   const { mobileOpen, setMobileOpen } = useAdminNav();
+  const storeTab = useAdminStore((s) => s.tab);
+  const storeSetTab = useAdminStore((s) => s.setTab);
+  const storeUnread = useAdminStore((s) => s.unreadSupportCount);
+
+  const tab = props.tab ?? storeTab;
+  const setTab = props.setTab ?? storeSetTab;
+  const unreadSupportCount = props.unreadSupportCount ?? storeUnread;
 
   const handleSelectTab = (key: string) => {
-    setTab(key);
+    setTab(key as AdminTab);
     setMobileOpen(false);
   };
 

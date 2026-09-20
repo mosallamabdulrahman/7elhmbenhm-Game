@@ -14,10 +14,10 @@ interface QuestionTableRowProps {
   deleteQuestion: (id: string) => void;
   busy: boolean;
   difficultyEditFor: string | null;
-  setDifficultyEditFor: React.Dispatch<React.SetStateAction<string | null>>;
+  setDifficultyEditFor: (val: React.SetStateAction<string | null>) => void;
   onInlineDifficultyChange: (q: any, level: string) => void;
   statusEditFor: string | null;
-  setStatusEditFor: React.Dispatch<React.SetStateAction<string | null>>;
+  setStatusEditFor: (val: React.SetStateAction<string | null>) => void;
   onInlineStatusChange: (q: any, isActive: boolean) => void;
 }
 
@@ -210,7 +210,7 @@ export function QuestionTableRow({
             </a>
             {q.show_question_first && (
               <span className="block mt-1 text-[10px] font-bold text-cyan-700 bg-cyan-50 border border-cyan-100 px-1.5 py-0.5 rounded w-fit">
-                السؤال أولاً
+                الميديا أولاً
               </span>
             )}
           </>

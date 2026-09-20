@@ -9,11 +9,13 @@ import { useCallback, useRef } from "react";
  */
 // Module-level deduplication state to survive component re-renders and multi-instances
 const globalPlayedStrikes = new Set<string>();
+const globalPlayedCells = new Map<string, number>();
 let globalLastSoundTime = 0;
 
 export function markStrikeAsPlayed(targetTeamIndex: number | string, cellIndex: number | string) {
-  const key = `cell_${targetTeamIndex}_${cellIndex}`;
+  const key = `cell_${Number(targetTeamIndex)}_${Number(cellIndex)}`;
   globalPlayedStrikes.add(key);
+  globalPlayedCells.set(key, Date.now());
 }
 
 export function useBattleAudio() {
@@ -86,50 +88,25 @@ export function useBattleAudio() {
     [getAudioContext]
   );
 
-  // 💥 Action-packed Strike Sound: Single, unified cinematic punch & blast (no delayed secondary sounds)
+  // 💥 Action-packed Strike Sound: Clean, single punchy impact (no dual transients or secondary clicks)
   const playActionHitSound = useCallback(() => {
     const context = getAudioContext();
     if (!context) return;
     const now = context.currentTime;
 
-    // 1. Heavy bass punch drop (240Hz -> 45Hz in 0.22s)
+    // Single unified punchy impact
     const osc = context.createOscillator();
     const oscGain = context.createGain();
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(240, now);
-    osc.frequency.exponentialRampToValueAtTime(45, now + 0.22);
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(45, now + 0.18);
 
-    oscGain.gain.setValueAtTime(0.25, now);
-    oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+    oscGain.gain.setValueAtTime(0.35, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
     osc.connect(oscGain);
     oscGain.connect(context.destination);
     osc.start(now);
-    osc.stop(now + 0.22);
-
-    // 2. Tightly integrated low-pass noise transient (0.18s)
-    const duration = 0.18;
-    const bufferSize = Math.floor(context.sampleRate * duration);
-    const buffer = context.createBuffer(1, bufferSize, context.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i += 1) {
-      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 1.5);
-    }
-    const noiseSource = context.createBufferSource();
-    noiseSource.buffer = buffer;
-
-    const filter = context.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(1100, now);
-    filter.frequency.exponentialRampToValueAtTime(180, now + duration);
-
-    const noiseGain = context.createGain();
-    noiseGain.gain.setValueAtTime(0.22, now);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-    noiseSource.connect(filter);
-    filter.connect(noiseGain);
-    noiseGain.connect(context.destination);
-    noiseSource.start(now);
+    osc.stop(now + 0.18);
   }, [getAudioContext]);
 
   // ⚠️ Mine Sound: Single, deep, thunderous detonation (no delayed chirps)
@@ -242,7 +219,7 @@ export function useBattleAudio() {
 
   /**
    * Guaranteed single playback per strike across entire application lifecycle:
-   * Uses module-level global set + cell coordinates + 500ms throttle.
+   * Uses module-level global set + cell coordinates + 3000ms cell lock + global throttle.
    */
   const triggerCombatEventSound = useCallback(
     (event: any) => {
@@ -253,27 +230,39 @@ export function useBattleAudio() {
       const cellIdx = event.cell_index ?? event.cellIndex;
       const cellKey =
         targetTeam !== undefined && cellIdx !== undefined
-          ? `cell_${targetTeam}_${cellIdx}`
+          ? `cell_${Number(targetTeam)}_${Number(cellIdx)}`
           : null;
 
-      // If already marked as played, ignore completely
+      const now = Date.now();
+
+      // Check if this event ID was already played
       if (eventIdKey && globalPlayedStrikes.has(eventIdKey)) {
         return;
       }
-      if (cellKey && globalPlayedStrikes.has(cellKey)) {
-        return;
+
+      // Check if this cell was already played within last 3 seconds
+      if (cellKey) {
+        if (globalPlayedStrikes.has(cellKey)) {
+          return;
+        }
+        const lastPlay = globalPlayedCells.get(cellKey) || 0;
+        if (now - lastPlay < 3000) {
+          return;
+        }
       }
 
-      // Enforce 500ms global throttle
-      const now = Date.now();
-      if (now - globalLastSoundTime < 500) {
+      // Enforce 400ms global throttle
+      if (now - globalLastSoundTime < 400) {
         return;
       }
       globalLastSoundTime = now;
 
       // Mark immediately before playing
       if (eventIdKey) globalPlayedStrikes.add(eventIdKey);
-      if (cellKey) globalPlayedStrikes.add(cellKey);
+      if (cellKey) {
+        globalPlayedStrikes.add(cellKey);
+        globalPlayedCells.set(cellKey, now);
+      }
 
       const isMine =
         event.result === "mine" ||

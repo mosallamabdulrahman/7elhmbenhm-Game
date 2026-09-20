@@ -2,18 +2,22 @@
 
 import React from "react";
 import { motion } from "motion/react";
+import { useAdminStore } from "@/stores/useAdminStore";
 
 interface StatsTabProps {
-  categories: any[];
-  questions: any[];
-  categoryUsage: Record<string, number>;
+  categories?: any[];
+  questions?: any[];
+  categoryUsage?: Record<string, number>;
 }
 
-export default function StatsTab({
-  categories,
-  questions,
-  categoryUsage,
-}: StatsTabProps) {
+export default function StatsTab(props: StatsTabProps) {
+  const storeCategories = useAdminStore((s) => s.categories);
+  const storeQuestions = useAdminStore((s) => s.questions);
+  const storeCategoryUsage = useAdminStore((s) => s.categoryUsage);
+
+  const categories = props.categories ?? storeCategories;
+  const questions = props.questions ?? storeQuestions;
+  const categoryUsage = props.categoryUsage ?? storeCategoryUsage;
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}

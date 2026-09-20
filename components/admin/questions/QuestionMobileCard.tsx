@@ -17,10 +17,10 @@ interface QuestionMobileCardProps {
   deleteQuestion: (id: string) => void;
   busy: boolean;
   difficultyEditFor: string | null;
-  setDifficultyEditFor: React.Dispatch<React.SetStateAction<string | null>>;
+  setDifficultyEditFor: (val: React.SetStateAction<string | null>) => void;
   onInlineDifficultyChange: (q: any, level: string) => void;
   statusEditFor: string | null;
-  setStatusEditFor: React.Dispatch<React.SetStateAction<string | null>>;
+  setStatusEditFor: (val: React.SetStateAction<string | null>) => void;
   onInlineStatusChange: (q: any, isActive: boolean) => void;
 }
 
@@ -194,18 +194,24 @@ export function QuestionMobileCard({
 
           {q.answer_image_url && (
             <div className="flex justify-between items-center py-1 border-b border-slate-50">
-              <span className="font-bold text-slate-500">صورة الإجابة:</span>
+              <span className="font-bold text-slate-500">ميديا الإجابة:</span>
               <a
                 href={q.answer_image_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#2271b1] hover:underline flex items-center gap-1.5 font-semibold"
+                className="text-[#2271b1] hover:underline flex items-center gap-1.5 font-semibold text-xs"
               >
-                <img
-                  src={q.answer_image_url}
-                  alt="الإجابة"
-                  className="w-9 h-9 object-cover rounded border border-slate-200"
-                />
+                {q.answer_image_url.match(/\.(mp3|wav|ogg|m4a)($|\?)/i) ? (
+                  <Music className="w-5 h-5 text-purple-600" />
+                ) : q.answer_image_url.match(/\.(mp4|webm|mov|m4v)($|\?)/i) ? (
+                  <Video className="w-5 h-5 text-rose-600" />
+                ) : (
+                  <img
+                    src={q.answer_image_url}
+                    alt="الإجابة"
+                    className="w-9 h-9 object-cover rounded border border-slate-200"
+                  />
+                )}
                 <span>معاينة</span>
               </a>
             </div>
@@ -316,7 +322,7 @@ export function QuestionMobileCard({
                   </a>
                   {q.show_question_first && (
                     <span className="block mt-1 text-[10px] font-bold text-cyan-700 bg-cyan-50 border border-cyan-100 px-1.5 py-0.5 rounded w-fit">
-                      السؤال أولاً
+                      الميديا أولاً
                     </span>
                   )}
                 </>

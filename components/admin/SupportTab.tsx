@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { callAdminApi } from "@/lib/admin-api";
+import { useAdminStore } from "@/stores/useAdminStore";
 
 export interface SupportMessage {
   id: string;
@@ -37,7 +38,11 @@ interface SupportTabProps {
   onRefreshUnread?: () => void;
 }
 
-export default function SupportTab({ notify, onRefreshUnread }: SupportTabProps) {
+export default function SupportTab(props: SupportTabProps) {
+  const storeNotify = useAdminStore((s) => s.notify);
+  const storeRefreshUnread = useAdminStore((s) => s.loadUnreadSupportCount);
+  const notify = props.notify ?? storeNotify;
+  const onRefreshUnread = props.onRefreshUnread ?? storeRefreshUnread;
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);

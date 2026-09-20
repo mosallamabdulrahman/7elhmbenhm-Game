@@ -3,24 +3,26 @@
 import React, { useState, useMemo, useRef } from "react";
 import { motion } from "motion/react";
 import { Edit2, FolderTree, Plus, Search, Trash2 } from "lucide-react";
+import { useAdminStore } from "@/stores/useAdminStore";
 
 interface GroupsTabProps {
   groups?: any[];
   categories?: any[];
-  busy: boolean;
-  setGroupModal: (group: any) => void;
-  deleteGroup: (id: string, name: string) => void;
+  busy?: boolean;
+  setGroupModal?: (group: any) => void;
+  deleteGroup?: (id: string, name: string) => void;
   onBulkAction?: (actionData: { action: string; ids: string[] }) => Promise<void>;
 }
 
-export default function GroupsTab({
-  groups = [],
-  categories = [],
-  busy,
-  setGroupModal,
-  deleteGroup,
-  onBulkAction,
-}: GroupsTabProps) {
+export default function GroupsTab(props: GroupsTabProps) {
+  const store = useAdminStore();
+
+  const groups = props.groups ?? store.groups;
+  const categories = props.categories ?? store.categories;
+  const busy = props.busy ?? store.busy;
+  const setGroupModal = props.setGroupModal ?? store.setGroupModal;
+  const deleteGroup = props.deleteGroup ?? store.deleteGroup;
+  const onBulkAction = props.onBulkAction ?? store.handleBulkGroups;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState(new Set<string>());
   const [bulkAction, setBulkAction] = useState("");

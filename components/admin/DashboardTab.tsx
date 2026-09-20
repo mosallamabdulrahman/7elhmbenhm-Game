@@ -2,18 +2,22 @@
 
 import React from "react";
 import { motion } from "motion/react";
+import { useAdminStore } from "@/stores/useAdminStore";
 
 interface DashboardTabProps {
-  questions: any[];
-  categories: any[];
-  setTab: (tab: string) => void;
+  questions?: any[];
+  categories?: any[];
+  setTab?: (tab: any) => void;
 }
 
-export default function DashboardTab({
-  questions,
-  categories,
-  setTab,
-}: DashboardTabProps) {
+export default function DashboardTab(props: DashboardTabProps) {
+  const storeQuestions = useAdminStore((s) => s.questions);
+  const storeCategories = useAdminStore((s) => s.categories);
+  const storeSetTab = useAdminStore((s) => s.setTab);
+
+  const questions = props.questions ?? storeQuestions;
+  const categories = props.categories ?? storeCategories;
+  const setTab = props.setTab ?? storeSetTab;
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}

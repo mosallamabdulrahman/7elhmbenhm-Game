@@ -487,7 +487,7 @@ export default function QuestionModal({
                             className="rounded text-cyan-600 focus:ring-cyan-500 h-3.5 w-3.5 border-slate-300 cursor-pointer"
                           />
                           <span className="text-xs font-bold whitespace-nowrap">
-                            ظهور السؤال أولاً
+                            ظهور الميديا أولاً
                           </span>
                         </label>
                         {isImageMedia && (
@@ -510,7 +510,7 @@ export default function QuestionModal({
                               }}
                               className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-center font-bold text-slate-700 focus:border-cyan-500 outline-none transition-colors"
                               placeholder="ثواني"
-                              title="مدة عرض الصورة بالثواني (فاضية = بدون توقيت)"
+                              title="مدة عرض الميديا بالثواني (فاضية = بدون توقيت)"
                             />
                           </div>
                         )}
@@ -548,7 +548,7 @@ export default function QuestionModal({
 
           <div>
             <label className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
-              <ImageIcon className="h-3 w-3" /> صورة الإجابة (اختياري)
+              <ImageIcon className="h-3 w-3" /> ميديا الإجابة (صورة / صوت / فيديو - اختياري)
             </label>
             <div className="mt-1">
               <AnswerImageUpload

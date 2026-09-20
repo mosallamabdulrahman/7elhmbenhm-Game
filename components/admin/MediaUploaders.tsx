@@ -258,8 +258,8 @@ export function AnswerImageUpload({ value, onChange, extra }: AnswerImageUploadP
     setUploading(true);
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "";
-      const allowed = ["jpg", "jpeg", "png", "gif", "webp"];
-      if (!allowed.includes(ext)) throw new Error("نوع الملف غير مدعوم.");
+      const allowed = [...IMAGE_EXTS, ...AUDIO_EXTS, ...VIDEO_EXTS];
+      if (!allowed.includes(ext)) throw new Error("نوع الملف غير مدعوم. الصيغ المدعومة: صور، صوت، أو فيديو.");
 
       const path = `answer_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
       const { data, error: upErr } = await supabase.storage
@@ -279,15 +279,17 @@ export function AnswerImageUpload({ value, onChange, extra }: AnswerImageUploadP
     }
   };
 
+  const detectedType = value ? mediaTypeFromUrl(value) : null;
+
   return (
     <div className="space-y-2">
       {error && <p className="text-[11px] text-rose-600">{error}</p>}
-      {value && (
+      {value && detectedType === "image" && (
         <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
           <img
             src={value}
-            alt="معاينة صورة الإجابة"
-            className="h-32 w-full object-cover"
+            alt="معاينة ميديا الإجابة"
+            className="h-32 w-full object-contain p-1"
             onError={(e) => {
               e.currentTarget.src = "/images/logo.png";
               e.currentTarget.className =
@@ -296,11 +298,23 @@ export function AnswerImageUpload({ value, onChange, extra }: AnswerImageUploadP
           />
         </div>
       )}
+      {value && detectedType === "audio" && (
+        <div className="p-2 rounded-xl border border-slate-200 bg-slate-50">
+          <audio controls src={value} className="w-full h-10 rounded-lg" />
+        </div>
+      )}
+      {value && detectedType === "video" && (
+        <video
+          controls
+          src={value}
+          className="h-40 w-full rounded-xl border border-slate-200 bg-black object-contain"
+        />
+      )}
       <input
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-xl border border-slate-200 px-3 py-2 text-[11px] text-slate-500 bg-slate-50 focus:border-cyan-500 outline-none transition-colors"
-        placeholder="أو أدخل رابط URL مباشرة"
+        placeholder="أو أدخل رابط URL مباشرة (صورة، صوت، أو فيديو)"
       />
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
@@ -315,7 +329,7 @@ export function AnswerImageUpload({ value, onChange, extra }: AnswerImageUploadP
             ) : (
               <Upload className="h-4 w-4" />
             )}
-            {uploading ? "جارٍ الرفع..." : "رفع صورة"}
+            {uploading ? "جارٍ الرفع..." : "رفع ملف (صورة / صوت / فيديو)"}
           </button>
           {value && (
             <button
@@ -333,7 +347,7 @@ export function AnswerImageUpload({ value, onChange, extra }: AnswerImageUploadP
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,audio/*,video/*"
         className="hidden"
         onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
       />

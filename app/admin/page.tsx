@@ -1,12 +1,8 @@
 "use client";
-/* eslint-disable react-hooks/set-state-in-effect */
 
-import { useCallback, useEffect, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { useEffect } from "react";
+import { AnimatePresence } from "motion/react";
 import { HelpCircle, Loader2 } from "lucide-react";
-import { supabasePanel as supabase } from "@/lib/supabase-panel";
-import { callAdminApi } from "@/lib/admin-api";
-import { DIFFICULTY_STRIKES } from "@/lib/admin-constants";
 import UsersManager from "@/components/admin/UsersManager";
 import Toast from "@/components/admin/Toast";
 import CategoryModal from "@/components/admin/CategoryModal";
@@ -20,555 +16,50 @@ import GroupsTab from "@/components/admin/GroupsTab";
 import GroupModal from "@/components/admin/GroupModal";
 import StatsTab from "@/components/admin/StatsTab";
 import SupportTab from "@/components/admin/SupportTab";
+import { useAdminStore, VALID_ADMIN_TABS } from "@/stores/useAdminStore";
+import type { AdminTab } from "@/types/admin";
 
-const VALID_TABS = [
-  "dashboard",
-  "groups",
-  "categories",
-  "questions",
-  "support",
-  "users",
-  "stats",
-];
-
-// ─── Main Admin Page ────────────────────────────────────────────
 export default function AdminPage() {
-  const [tab, setTabState] = useState(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const urlTab = params.get("tab");
-      if (urlTab && VALID_TABS.includes(urlTab)) {
-        return urlTab;
-      }
-      const savedTab = window.localStorage.getItem("admin_active_tab");
-      if (savedTab && VALID_TABS.includes(savedTab)) {
-        return savedTab;
-      }
-    }
-    return "questions";
-  });
+  const {
+    tab,
+    setTab,
+    loading,
+    busy,
+    toast,
+    closeToast,
+    groupModal,
+    setGroupModal,
+    saveGroup,
+    catModal,
+    setCatModal,
+    saveCategory,
+    categories,
+    groups,
+    questions,
+    qModal,
+    setQModal,
+    saveQuestion,
+    filterCategory,
+    helpOpen,
+    setHelpOpen,
+    loadAllData,
+  } = useAdminStore();
 
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const setTab = useCallback((newTab: string) => {
-    setTabState(newTab);
-    setSearchQuery("");
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("admin_active_tab", newTab);
-      const url = new URL(window.location.href);
-      url.searchParams.set("tab", newTab);
-      window.history.replaceState(null, "", url.toString());
-    }
-  }, []);
+  useEffect(() => {
+    loadAllData();
+  }, [loadAllData]);
 
   useEffect(() => {
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
-      const urlTab = params.get("tab");
-      if (urlTab && VALID_TABS.includes(urlTab)) {
-        setTabState(urlTab);
+      const urlTab = params.get("tab") as AdminTab | null;
+      if (urlTab && VALID_ADMIN_TABS.includes(urlTab)) {
+        setTab(urlTab);
       }
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
-
-  const [groups, setGroups] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [questions, setQuestions] = useState<any[]>([]);
-  const [questionStats, setQuestionStats] = useState<Record<string, any>>({});
-  const [categoryUsage, setCategoryUsage] = useState<Record<string, number>>({});
-  const [filterCategory, setFilterCategory] = useState("");
-  const [filterDifficulty, setFilterDifficulty] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" | "info" }>({ msg: "", type: "success" });
-  const [groupModal, setGroupModal] = useState<any | null>(null); // null | {} | group object
-  const [catModal, setCatModal] = useState<any | null>(null); // null | {} | category object
-  const [qModal, setQModal] = useState<any | null>(null);
-  const [helpOpen, setHelpOpen] = useState(false);
-  const [difficultyEditFor, setDifficultyEditFor] = useState<string | null>(null); // question id with the inline dropdown open
-  const [statusEditFor, setStatusEditFor] = useState<string | null>(null); // question id with inline status dropdown open
-  const [categoryStatusEditFor, setCategoryStatusEditFor] = useState<string | null>(null); // category id with inline status dropdown open
-
-  const notify = useCallback(
-    (msg: string, type: "success" | "error" | "info" = "success") => setToast({ msg, type }),
-    [],
-  );
-  const closeToast = useCallback(
-    () => setToast({ msg: "", type: "success" }),
-    [],
-  );
-
-  // ── Data loaders
-  const loadGroups = useCallback(async () => {
-    try {
-      const { groups: rows } = await callAdminApi("/api/admin/groups");
-      setGroups(rows || []);
-    } catch (err: any) {
-      notify(err.message, "error");
-    }
-  }, [notify]);
-
-  const loadCategories = useCallback(async () => {
-    try {
-      const { categories: rows } = await callAdminApi("/api/admin/categories");
-      setCategories(rows || []);
-    } catch (err: any) {
-      notify(err.message, "error");
-    }
-  }, [notify]);
-
-  const loadQuestions = useCallback(async () => {
-    try {
-      const { questions: rows } = await callAdminApi("/api/admin/questions");
-      setQuestions(rows || []);
-    } catch (err: any) {
-      notify(err.message, "error");
-    }
-  }, [notify]);
-
-  // Per-question performance: how many times each bank question has been
-  // played, and of those, how many were actually answered correctly —
-  // computed client-side from room_questions since it's already broadly
-  // readable to any authenticated session (same as loadCategoryUsage below).
-  const loadQuestionStats = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from("room_questions")
-        .select("question_bank_id, is_used, answered_correctly")
-        .not("question_bank_id", "is", null);
-      if (error) {
-        console.error("Error loading question statistics:", error);
-        return;
-      }
-      const stats: Record<string, { used: number; correct: number; incorrect: number }> = {};
-      (data || []).forEach((row: any) => {
-        if (!row.is_used) return;
-        const key = row.question_bank_id;
-        const s = stats[key] || { used: 0, correct: 0, incorrect: 0 };
-        s.used += 1;
-        if (row.answered_correctly === true) s.correct += 1;
-        else if (row.answered_correctly === false) s.incorrect += 1;
-        stats[key] = s;
-      });
-      setQuestionStats(stats);
-    } catch (err) {
-      console.error("Error loading question statistics:", err);
-    }
-  }, []);
-
-  const loadCategoryUsage = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from("game_rooms")
-        .select("selected_categories");
-      if (!error && data) {
-        const counts: Record<string, number> = {};
-        data.forEach((room: any) => {
-          if (Array.isArray(room.selected_categories)) {
-            room.selected_categories.forEach((catIdentifier: string) => {
-              counts[catIdentifier] = (counts[catIdentifier] || 0) + 1;
-            });
-          }
-        });
-        setCategoryUsage(counts);
-      }
-    } catch (err) {
-      console.error("Error loading category usage statistics:", err);
-    }
-  }, []);
-
-  const [unreadSupportCount, setUnreadSupportCount] = useState(0);
-
-  const loadUnreadSupportCount = useCallback(async () => {
-    try {
-      const data = await callAdminApi("/api/support");
-      const unread = (data.messages || []).filter((m: any) => m.status === "unread").length;
-      setUnreadSupportCount(unread);
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    Promise.all([
-      loadGroups(),
-      loadCategories(),
-      loadQuestions(),
-      loadCategoryUsage(),
-      loadQuestionStats(),
-      loadUnreadSupportCount(),
-    ]).finally(() => {
-      if (active) setLoading(false);
-    });
-    return () => {
-      active = false;
-    };
-  }, [
-    loadGroups,
-    loadCategories,
-    loadQuestions,
-    loadCategoryUsage,
-    loadQuestionStats,
-    loadUnreadSupportCount,
-  ]);
-
-  // ── Groups CRUD
-  const saveGroup = async (form: any) => {
-    setBusy(true);
-    try {
-      const { error } = await supabase.rpc("admin_save_group", {
-        p_id: form.id || null,
-        p_name: form.name.trim(),
-      });
-      if (error) throw error;
-      notify(form.id ? "تم تحديث التصنيف." : "تم إضافة التصنيف.");
-      await loadGroups();
-      setGroupModal(null);
-    } catch (err: any) {
-      notify(err.message, "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const deleteGroup = async (id: string, name: string) => {
-    if (
-      !window.confirm(
-        `حذف التصنيف "${name}"؟ ستصبح فئات الأسئلة التابعة له بدون تصنيف رئيسي.`,
-      )
-    )
-      return;
-    setBusy(true);
-    try {
-      const { error } = await supabase.rpc("admin_delete_group", {
-        p_id: id,
-      });
-      if (error) throw error;
-      notify("تم حذف التصنيف.");
-      await Promise.all([loadGroups(), loadCategories()]);
-    } catch (err: any) {
-      notify(err.message, "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // ── Categories CRUD
-  const saveCategory = async (form: any) => {
-    setBusy(true);
-    try {
-      const { error } = await supabase.rpc("admin_save_category", {
-        p_id: form.id || null,
-        p_name: form.name.trim(),
-        p_description: form.description?.trim() || null,
-        p_image_url: form.image_url?.trim() || null,
-        p_sort_order: form.sort_order || 0,
-        p_is_active: form.is_active,
-        p_group_id: form.group_id || null,
-      });
-      if (error) throw error;
-      notify(form.id ? "تم تحديث فئة الأسئلة." : "تم إضافة فئة الأسئلة.");
-      await loadCategories();
-      setCatModal(null);
-    } catch (err: any) {
-      notify(err.message, "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const deleteCategory = async (id: string) => {
-    if (!window.confirm("حذف فئة الأسئلة هذه وكل أسئلتها؟")) return;
-    setBusy(true);
-    try {
-      const { error } = await supabase.rpc("admin_delete_category", {
-        p_id: id,
-      });
-      if (error) throw error;
-      notify("تم الحذف.");
-      await Promise.all([loadCategories(), loadQuestions()]);
-    } catch (err: any) {
-      notify(err.message, "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // ── Questions CRUD
-  // Both extra media settings are optional and mutually exclusive: duration
-  // only applies to images, play count only to audio/video. Normalizing here
-  // (instead of trusting the form) keeps stale values out of the DB even if
-  // the modal state was left dirty. The max clamps mirror the DB CHECK
-  // constraints (image_duration 1–600, media_play_count 1–20) so a typed-in
-  // out-of-range number gets corrected instead of failing the insert.
-  const normalizePositiveInt = (value: any, max: number) => {
-    const number = Number(value);
-    if (!Number.isFinite(number) || number <= 0) return null;
-    return Math.min(Math.floor(number), max);
-  };
-
-  const saveQuestion = async (form: any) => {
-    const targetCat = categories.find((c) => String(c.id) === String(form.category_id));
-    const targetGroup = groups.find((g) => String(g.id) === String(targetCat?.group_id));
-    const isWlaKelma =
-      targetCat?.name === "ولا كلمة" ||
-      targetCat?.name?.includes("ولا كلمة") ||
-      targetGroup?.name === "ولا كلمة" ||
-      targetCat?.group_id === "d6a55dbb-85dd-4245-985e-e3d7e5d1e000" ||
-      String(form.category_id) === "wla_kelma";
-
-    const qText = form.question_text?.trim() || (isWlaKelma ? form.answer_text?.trim() || "ولا كلمة" : "");
-    const aText = form.answer_text?.trim() || "";
-
-    const isDup = questions.some(
-      (q) => {
-        if (q.category_id !== form.category_id || q.id === form.id) return false;
-        const sameAnswer = (q.answer_text?.trim().toLowerCase() || "") === aText.toLowerCase();
-        const sameAnswerImage = (q.answer_image_url?.trim() || "") === (form.answer_image_url?.trim() || "");
-        if (isWlaKelma) {
-          if (!aText) return false;
-          return sameAnswer && sameAnswerImage;
-        }
-        const sameText = q.question_text?.trim().toLowerCase() === qText.toLowerCase();
-        return sameText && (sameAnswer || (!aText && !q.answer_text?.trim())) && sameAnswerImage;
-      }
-    );
-    if (isDup) {
-      notify(
-        isWlaKelma ? "هذا العمل موجود مسبقاً في نفس الفئة!" : "هالسؤال موجود من قبل بنفس التصنيف، ما تقدر تضيفه مرة ثانية!",
-        "error",
-      );
-      return;
-    }
-    setBusy(true);
-    try {
-      const mediaUrl = form.media_url?.trim() || null;
-      const mediaType = mediaUrl ? form.media_type || "image" : null;
-      const showQuestionFirst = mediaUrl
-        ? Boolean(form.show_question_first)
-        : false;
-
-      const questionPayload = {
-        id: form.id || null,
-        category_id: form.category_id,
-        question_text: qText,
-        answer_text: aText,
-        difficulty: form.difficulty,
-        strikes: DIFFICULTY_STRIKES[form.difficulty],
-        position: form.position || 1,
-        is_active: form.is_active,
-        media_url: mediaUrl,
-        media_type: mediaType,
-        image_duration:
-          mediaType === "image"
-            ? normalizePositiveInt(form.image_duration, 600)
-            : null,
-        media_play_count:
-          mediaType === "audio" || mediaType === "video"
-            ? normalizePositiveInt(form.media_play_count, 20)
-            : null,
-        answer_image_url: form.answer_image_url?.trim() || null,
-        timer_seconds: form.timer_seconds ? Number(form.timer_seconds) : 60,
-      };
-
-      try {
-        await callAdminApi("/api/admin/questions", "POST", questionPayload);
-      } catch (apiErr) {
-        // Fallback to RPC if API route fails
-        const rpcParams: any = {
-          p_id: form.id || null,
-          p_category_id: form.category_id,
-          p_question_text: qText,
-          p_answer_text: aText,
-          p_difficulty: form.difficulty,
-          p_strikes: DIFFICULTY_STRIKES[form.difficulty],
-          p_position: form.position || 1,
-          p_is_active: form.is_active,
-          p_media_url: mediaUrl,
-          p_media_type: mediaType,
-          p_image_duration: questionPayload.image_duration,
-          p_media_play_count: questionPayload.media_play_count,
-          p_answer_image_url: questionPayload.answer_image_url,
-          p_show_question_first: showQuestionFirst,
-        };
-
-        let { error } = await supabase.rpc("admin_save_question", rpcParams);
-        if (error && error.message?.includes("p_show_question_first")) {
-          delete rpcParams.p_show_question_first;
-          const retry = await supabase.rpc("admin_save_question", rpcParams);
-          error = retry.error;
-        }
-        if (error) throw error;
-      }
-      notify(form.id ? "تم تحديث السؤال." : "تم إضافة السؤال.");
-      await loadQuestions();
-      setQModal(null);
-    } catch (err: any) {
-      notify(err.message, "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // Quick inline difficulty change from the table row's dropdown — reuses
-  // saveQuestion with the row's existing fields so nothing else changes.
-  const handleInlineDifficultyChange = async (question: any, newDifficulty: any) => {
-    setDifficultyEditFor(null);
-    if (newDifficulty === question.difficulty) return;
-    await saveQuestion({ ...question, difficulty: newDifficulty });
-  };
-
-  // Quick inline status change (مفعّل / معطّل) from the table row's dropdown
-  const handleInlineStatusChange = async (question: any, newStatus: boolean) => {
-    setStatusEditFor(null);
-    if (newStatus === question.is_active) return;
-    await saveQuestion({ ...question, is_active: newStatus });
-  };
-
-  const handleInlineCategoryStatusChange = async (category: any, newStatus: boolean) => {
-    setCategoryStatusEditFor(null);
-    if (newStatus === category.is_active) return;
-    await saveCategory({ ...category, is_active: newStatus });
-  };
-
-  // ── Bulk Actions
-  const handleBulkQuestions = async ({ action, ids, category_id }: { action: string; ids: string[]; category_id?: string }) => {
-    if (!ids || ids.length === 0) return;
-    setBusy(true);
-    try {
-      if (action === "delete") {
-        await callAdminApi("/api/admin/questions", "DELETE", { ids });
-        notify(`تم حذف ${ids.length} سؤال بنجاح.`);
-      } else if (action === "activate") {
-        await callAdminApi("/api/admin/questions", "PATCH", {
-          ids,
-          action: "activate",
-        });
-        notify(`تم تفعيل ${ids.length} سؤال بنجاح.`);
-      } else if (action === "deactivate") {
-        await callAdminApi("/api/admin/questions", "PATCH", {
-          ids,
-          action: "deactivate",
-        });
-        notify(`تم تعطيل ${ids.length} سؤال بنجاح.`);
-      } else if (action === "change_category") {
-        await callAdminApi("/api/admin/questions", "PATCH", {
-          ids,
-          action: "change_category",
-          category_id,
-        });
-        notify(`تم نقل ${ids.length} سؤال إلى الفئة بنجاح.`);
-      }
-      await loadQuestions();
-    } catch (err: any) {
-      notify(err.message, "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleBulkCategories = async ({ action, ids, group_id }: { action: string; ids: string[]; group_id?: string }) => {
-    if (!ids || ids.length === 0) return;
-    setBusy(true);
-    try {
-      if (action === "delete") {
-        await callAdminApi("/api/admin/categories", "DELETE", { ids });
-        notify(`تم حذف ${ids.length} فئة أسئلة بنجاح.`);
-        await Promise.all([loadCategories(), loadQuestions()]);
-      } else if (action === "activate") {
-        await callAdminApi("/api/admin/categories", "PATCH", {
-          ids,
-          action: "activate",
-        });
-        notify(`تم تفعيل ${ids.length} فئة بنجاح.`);
-        await loadCategories();
-      } else if (action === "deactivate") {
-        await callAdminApi("/api/admin/categories", "PATCH", {
-          ids,
-          action: "deactivate",
-        });
-        notify(`تم تعطيل ${ids.length} فئة بنجاح.`);
-        await loadCategories();
-      } else if (action === "assign_group") {
-        await callAdminApi("/api/admin/categories", "PATCH", {
-          ids,
-          action: "assign_group",
-          group_id,
-        });
-        notify(`تم تعيين التصنيف لـ ${ids.length} فئة بنجاح.`);
-        await loadCategories();
-      }
-    } catch (err: any) {
-      notify(err.message, "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleBulkGroups = async ({ action, ids }: { action: string; ids: string[] }) => {
-    if (!ids || ids.length === 0) return;
-    setBusy(true);
-    try {
-      if (action === "delete") {
-        await callAdminApi("/api/admin/groups", "DELETE", { ids });
-        notify(`تم حذف ${ids.length} تصنيف بنجاح.`);
-        await Promise.all([loadGroups(), loadCategories()]);
-      }
-    } catch (err: any) {
-      notify(err.message, "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const deleteQuestion = async (id: string) => {
-    if (!window.confirm("حذف هذا السؤال؟")) return;
-    setBusy(true);
-    try {
-      const { error } = await supabase.rpc("admin_delete_question", {
-        p_id: id,
-      });
-      if (error) throw error;
-      notify("تم حذف السؤال.");
-      await loadQuestions();
-    } catch (err: any) {
-      notify(err.message, "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const filteredQuestions = questions.filter((q) => {
-    const matchesCategory = filterCategory
-      ? String(q.category_id) === String(filterCategory)
-      : true;
-    const matchesDifficulty = filterDifficulty
-      ? String(q.difficulty) === String(filterDifficulty)
-      : true;
-    const matchesSearch = searchQuery
-      ? q.question_text?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        q.answer_text?.toLowerCase().includes(searchQuery.toLowerCase())
-      : true;
-    return matchesCategory && matchesDifficulty && matchesSearch;
-  });
-
-  const filteredCategories = categories.filter((c) => {
-    return searchQuery
-      ? c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          c.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      : true;
-  });
-
-  const categoryMap: Record<string, any> = {};
-  categories.forEach((c) => {
-    categoryMap[String(c.id)] = c;
-    if (c.name) {
-      categoryMap[c.name.trim()] = c;
-    }
-  });
+  }, [setTab]);
 
   if (loading) {
     return (
@@ -581,6 +72,7 @@ export default function AdminPage() {
   return (
     <>
       <Toast msg={toast.msg} type={toast.type} onClose={closeToast} />
+
       <AnimatePresence>
         {groupModal !== null && (
           <GroupModal
@@ -591,6 +83,7 @@ export default function AdminPage() {
           />
         )}
       </AnimatePresence>
+
       <AnimatePresence>
         {catModal !== null && (
           <CategoryModal
@@ -603,6 +96,7 @@ export default function AdminPage() {
           />
         )}
       </AnimatePresence>
+
       <AnimatePresence>
         {qModal !== null && (
           <QuestionModal
@@ -616,12 +110,13 @@ export default function AdminPage() {
           />
         )}
       </AnimatePresence>
+
       <AnimatePresence>
         {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
       </AnimatePresence>
 
       <div className="flex flex-1 min-h-[calc(100vh-32px)]">
-        <AdminSidebar tab={tab} setTab={setTab} unreadSupportCount={unreadSupportCount} />
+        <AdminSidebar />
 
         {/* Main Content Area */}
         <main className="flex-1 bg-[#f0f0f1] p-3 sm:p-6 text-[#2c3338] overflow-auto">
@@ -672,91 +167,13 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {tab === "dashboard" && (
-            <DashboardTab
-              questions={questions}
-              categories={categories}
-              setTab={setTab}
-            />
-          )}
-
-          {tab === "questions" && (
-            <QuestionsTab
-              categories={categories}
-              categoryMap={categoryMap}
-              questions={questions}
-              filteredQuestions={filteredQuestions}
-              questionStats={questionStats}
-              filterCategory={filterCategory}
-              setFilterCategory={setFilterCategory}
-              filterDifficulty={filterDifficulty}
-              setFilterDifficulty={setFilterDifficulty}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              busy={busy}
-              setQModal={setQModal}
-              deleteQuestion={deleteQuestion}
-              difficultyEditFor={difficultyEditFor}
-              setDifficultyEditFor={setDifficultyEditFor}
-              onInlineDifficultyChange={handleInlineDifficultyChange}
-              statusEditFor={statusEditFor}
-              setStatusEditFor={setStatusEditFor}
-              onInlineStatusChange={handleInlineStatusChange}
-              onBulkAction={handleBulkQuestions}
-            />
-          )}
-
-          {tab === "groups" && (
-            <GroupsTab
-              groups={groups}
-              categories={categories}
-              busy={busy}
-              setGroupModal={setGroupModal}
-              deleteGroup={deleteGroup}
-              onBulkAction={handleBulkGroups}
-            />
-          )}
-
-          {tab === "categories" && (
-            <CategoriesTab
-              categories={categories}
-              filteredCategories={filteredCategories}
-              groups={groups}
-              questions={questions}
-              categoryUsage={categoryUsage}
-              busy={busy}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              setCatModal={setCatModal}
-              deleteCategory={deleteCategory}
-              statusEditFor={categoryStatusEditFor}
-              setStatusEditFor={setCategoryStatusEditFor}
-              onInlineStatusChange={handleInlineCategoryStatusChange}
-              onBulkAction={handleBulkCategories}
-            />
-          )}
-
-          {tab === "support" && (
-            <SupportTab notify={notify} onRefreshUnread={loadUnreadSupportCount} />
-          )}
-
-          {tab === "users" && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25 }}
-            >
-              <UsersManager notify={notify} />
-            </motion.div>
-          )}
-
-          {tab === "stats" && (
-            <StatsTab
-              categories={categories}
-              questions={questions}
-              categoryUsage={categoryUsage}
-            />
-          )}
+          {tab === "dashboard" && <DashboardTab />}
+          {tab === "questions" && <QuestionsTab />}
+          {tab === "groups" && <GroupsTab />}
+          {tab === "categories" && <CategoriesTab />}
+          {tab === "support" && <SupportTab />}
+          {tab === "users" && <UsersManager />}
+          {tab === "stats" && <StatsTab />}
         </main>
       </div>
     </>
