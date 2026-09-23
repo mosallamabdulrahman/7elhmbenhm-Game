@@ -10,3 +10,5 @@
    - NEVER run `git push` or push changes to GitHub. The user will handle all Git pushes themselves.
 
 4. **Restricted Tailwind Classes**: NEVER use `font-black`, `font-extrabold`, or `font-mono` classes in any generated code, components, or UI suggestions unless the user explicitly includes or requests them first.
+
+5. **Direct Database Execution**: NEVER ask the user to manually run SQL queries, scripts, or modifications in the Supabase SQL Editor. Since the AI has direct database access, it must execute any required SQL commands, migrations, or database updates directly on its own without asking the user.

@@ -17,8 +17,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { callAdminApi } from "@/lib/admin-api";
 import { useAdminStore } from "@/stores/useAdminStore";
+import { useDragScroll } from "@/hooks/useDragScroll";
 
 export interface SupportMessage {
   id: string;
@@ -39,123 +39,43 @@ interface SupportTabProps {
 }
 
 export default function SupportTab(props: SupportTabProps) {
+  const messages = useAdminStore((s) => s.supportMessages);
+  const loading = useAdminStore((s) => s.supportLoading);
+  const busy = useAdminStore((s) => s.supportBusy);
+  const fetchMessages = useAdminStore((s) => s.loadSupportMessages);
+  const handleUpdateStatus = useAdminStore((s) => s.updateSupportStatus);
+  const deleteSupportMessages = useAdminStore((s) => s.deleteSupportMessages);
   const storeNotify = useAdminStore((s) => s.notify);
-  const storeRefreshUnread = useAdminStore((s) => s.loadUnreadSupportCount);
   const notify = props.notify ?? storeNotify;
-  const onRefreshUnread = props.onRefreshUnread ?? storeRefreshUnread;
-  const [messages, setMessages] = useState<SupportMessage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "unread" | "read" | "resolved">("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState("");
   const [previewMsg, setPreviewMsg] = useState<SupportMessage | null>(null);
 
-  const tableRef = useRef<HTMLDivElement | null>(null);
-  const isDragging = useRef(false);
-  const startX = useRef(0);
-  const scrollLeft = useRef(0);
-
-  const fetchMessages = useCallback(
-    async (manual = false) => {
-      setBusy(true);
-      try {
-        const data = await callAdminApi("/api/support");
-        setMessages(data.messages || []);
-        if (manual) {
-          notify?.("تم تحديث رسائل الدعم بنجاح.", "success");
-        }
-        if (onRefreshUnread) onRefreshUnread();
-      } catch (err: any) {
-        console.error(err);
-        notify?.(err?.message || "فشل تحميل رسائل الدعم.", "error");
-      } finally {
-        setBusy(false);
-      }
-    },
-    [notify, onRefreshUnread],
-  );
+  const {
+    ref: tableRef,
+    onMouseDown: handleMouseDown,
+    onMouseLeave: handleMouseLeave,
+    onMouseUp: handleMouseUp,
+    onMouseMove: handleMouseMove,
+  } = useDragScroll();
 
   useEffect(() => {
-    let active = true;
-    callAdminApi("/api/support")
-      .then((data) => {
-        if (!active) return;
-        setMessages(data.messages || []);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (!active) return;
-        console.error(err);
-        setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest("button, input, select, a")) return;
-    isDragging.current = true;
-    startX.current = e.pageX - (tableRef.current?.offsetLeft || 0);
-    scrollLeft.current = tableRef.current?.scrollLeft || 0;
-  };
-
-  const handleMouseLeave = () => {
-    isDragging.current = false;
-  };
-
-  const handleMouseUp = () => {
-    isDragging.current = false;
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging.current || !tableRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - tableRef.current.offsetLeft;
-    const walk = (x - startX.current) * 1.3;
-    tableRef.current.scrollLeft = scrollLeft.current - walk;
-  };
-
-  const handleUpdateStatus = async (id: string, status: string) => {
-    setBusy(true);
-    try {
-      await callAdminApi("/api/support", "PATCH", { id, status });
-      setMessages((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, status } : m)),
-      );
-      notify?.("تم تحديث حالة الرسالة بنجاح.", "success");
-      if (onRefreshUnread) onRefreshUnread();
-    } catch (err: any) {
-      console.error(err);
-      notify?.(err?.message || "حدث خطأ أثناء التحديث.", "error");
-    } finally {
-      setBusy(false);
-    }
-  };
+    fetchMessages();
+  }, [fetchMessages]);
 
   const handleDelete = async (ids: string[]) => {
     if (!confirm(`هل أنت متأكد من حذف ${ids.length} رسالة؟`)) return;
-    setBusy(true);
-    try {
-      await callAdminApi("/api/support", "DELETE", { ids });
-      setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        ids.forEach((id) => next.delete(id));
-        return next;
-      });
-      if (previewMsg && ids.includes(previewMsg.id)) {
-        setPreviewMsg(null);
-      }
-      notify?.("تم الحذف بنجاح.", "success");
-      if (onRefreshUnread) onRefreshUnread();
-    } catch (err: any) {
-      console.error(err);
-      notify?.(err?.message || "حدث خطأ أثناء الحذف.", "error");
-    } finally {
-      setBusy(false);
+    await deleteSupportMessages(ids);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+    if (previewMsg && ids.includes(previewMsg.id)) {
+      setPreviewMsg(null);
     }
   };
 

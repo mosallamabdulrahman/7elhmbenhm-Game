@@ -10,6 +10,7 @@ import { QuestionsPagination } from "./questions/QuestionsPagination";
 import { QuestionTableRow } from "./questions/QuestionTableRow";
 import { QuestionMobileCard } from "./questions/QuestionMobileCard";
 import { useAdminStore } from "@/stores/useAdminStore";
+import { useDragScroll } from "@/hooks/useDragScroll";
 
 interface QuestionsTabProps {
   categories?: any[];
@@ -36,29 +37,69 @@ interface QuestionsTabProps {
 }
 
 export default function QuestionsTab(props: QuestionsTabProps) {
-  const store = useAdminStore();
+  const storeCategories = useAdminStore((s) => s.categories);
+  const storeQuestions = useAdminStore((s) => s.questions);
+  const storeQuestionStats = useAdminStore((s) => s.questionStats);
+  const storeFilterCategory = useAdminStore((s) => s.filterCategory);
+  const storeSetFilterCategory = useAdminStore((s) => s.setFilterCategory);
+  const storeFilterDifficulty = useAdminStore((s) => s.filterDifficulty);
+  const storeSetFilterDifficulty = useAdminStore((s) => s.setFilterDifficulty);
+  const storeSearchQuery = useAdminStore((s) => s.searchQuery);
+  const storeSetSearchQuery = useAdminStore((s) => s.setSearchQuery);
+  const storeBusy = useAdminStore((s) => s.busy);
+  const storeSetQModal = useAdminStore((s) => s.setQModal);
+  const storeDeleteQuestion = useAdminStore((s) => s.deleteQuestion);
+  const storeDifficultyEditFor = useAdminStore((s) => s.difficultyEditFor);
+  const storeSetDifficultyEditFor = useAdminStore((s) => s.setDifficultyEditFor);
+  const storeInlineDiffChange = useAdminStore((s) => s.handleInlineDifficultyChange);
+  const storeStatusEditFor = useAdminStore((s) => s.statusEditFor);
+  const storeSetStatusEditFor = useAdminStore((s) => s.setStatusEditFor);
+  const storeInlineStatusChange = useAdminStore((s) => s.handleInlineStatusChange);
+  const storeBulkAction = useAdminStore((s) => s.handleBulkQuestions);
 
-  const categories = props.categories ?? store.categories;
-  const categoryMap = props.categoryMap ?? store.getCategoryMap();
-  const questions = props.questions ?? store.questions;
-  const filteredQuestions = props.filteredQuestions ?? store.getFilteredQuestions();
-  const questionStats = props.questionStats ?? store.questionStats;
-  const filterCategory = props.filterCategory ?? store.filterCategory;
-  const setFilterCategory = props.setFilterCategory ?? store.setFilterCategory;
-  const filterDifficulty = props.filterDifficulty ?? store.filterDifficulty;
-  const setFilterDifficulty = props.setFilterDifficulty ?? store.setFilterDifficulty;
-  const searchQuery = props.searchQuery ?? store.searchQuery;
-  const setSearchQuery = props.setSearchQuery ?? store.setSearchQuery;
-  const busy = props.busy ?? store.busy;
-  const setQModal = props.setQModal ?? store.setQModal;
-  const deleteQuestion = props.deleteQuestion ?? store.deleteQuestion;
-  const difficultyEditFor = props.difficultyEditFor ?? store.difficultyEditFor;
-  const setDifficultyEditFor = props.setDifficultyEditFor ?? store.setDifficultyEditFor;
-  const onInlineDifficultyChange = props.onInlineDifficultyChange ?? store.handleInlineDifficultyChange;
-  const statusEditFor = props.statusEditFor ?? store.statusEditFor;
-  const setStatusEditFor = props.setStatusEditFor ?? store.setStatusEditFor;
-  const onInlineStatusChange = props.onInlineStatusChange ?? store.handleInlineStatusChange;
-  const onBulkAction = props.onBulkAction ?? store.handleBulkQuestions;
+  const categories = props.categories ?? storeCategories;
+  const questions = props.questions ?? storeQuestions;
+  const questionStats = props.questionStats ?? storeQuestionStats;
+  const filterCategory = props.filterCategory ?? storeFilterCategory;
+  const setFilterCategory = props.setFilterCategory ?? storeSetFilterCategory;
+  const filterDifficulty = props.filterDifficulty ?? storeFilterDifficulty;
+  const setFilterDifficulty = props.setFilterDifficulty ?? storeSetFilterDifficulty;
+  const searchQuery = props.searchQuery ?? storeSearchQuery;
+  const setSearchQuery = props.setSearchQuery ?? storeSetSearchQuery;
+  const busy = props.busy ?? storeBusy;
+  const setQModal = props.setQModal ?? storeSetQModal;
+  const deleteQuestion = props.deleteQuestion ?? storeDeleteQuestion;
+  const difficultyEditFor = props.difficultyEditFor ?? storeDifficultyEditFor;
+  const setDifficultyEditFor = props.setDifficultyEditFor ?? storeSetDifficultyEditFor;
+  const onInlineDifficultyChange = props.onInlineDifficultyChange ?? storeInlineDiffChange;
+  const statusEditFor = props.statusEditFor ?? storeStatusEditFor;
+  const setStatusEditFor = props.setStatusEditFor ?? storeSetStatusEditFor;
+  const onInlineStatusChange = props.onInlineStatusChange ?? storeInlineStatusChange;
+  const onBulkAction = props.onBulkAction ?? storeBulkAction;
+
+  const categoryMap = useMemo(() => {
+    if (props.categoryMap) return props.categoryMap;
+    const map: Record<string, any> = {};
+    categories.forEach((cat) => {
+      map[cat.id] = cat;
+    });
+    return map;
+  }, [props.categoryMap, categories]);
+
+  const filteredQuestions = useMemo(() => {
+    if (props.filteredQuestions) return props.filteredQuestions;
+    return questions.filter((q) => {
+      if (filterCategory && q.category_id !== filterCategory) return false;
+      if (filterDifficulty && q.difficulty !== filterDifficulty) return false;
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesQuestion = q.question_text?.toLowerCase().includes(query);
+        const matchesAnswer = q.answer_text?.toLowerCase().includes(query);
+        if (!matchesQuestion && !matchesAnswer) return false;
+      }
+      return true;
+    });
+  }, [props.filteredQuestions, questions, filterCategory, filterDifficulty, searchQuery]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState("");
@@ -70,33 +111,13 @@ export default function QuestionsTab(props: QuestionsTabProps) {
   const tableTopRef = useRef<HTMLDivElement | null>(null);
 
   // Tablet & Desktop drag-to-scroll support
-  const tableRef = useRef<HTMLDivElement | null>(null);
-  const isDragging = useRef(false);
-  const startX = useRef(0);
-  const scrollLeft = useRef(0);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest("button, input, select, a")) return;
-    isDragging.current = true;
-    startX.current = e.pageX - (tableRef.current?.offsetLeft || 0);
-    scrollLeft.current = tableRef.current?.scrollLeft || 0;
-  };
-
-  const handleMouseLeave = () => {
-    isDragging.current = false;
-  };
-
-  const handleMouseUp = () => {
-    isDragging.current = false;
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging.current || !tableRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - tableRef.current.offsetLeft;
-    const walk = (x - startX.current) * 1.3;
-    tableRef.current.scrollLeft = scrollLeft.current - walk;
-  };
+  const {
+    ref: tableRef,
+    onMouseDown: handleMouseDown,
+    onMouseLeave: handleMouseLeave,
+    onMouseUp: handleMouseUp,
+    onMouseMove: handleMouseMove,
+  } = useDragScroll();
 
   // Adjust page state during render when filter or search changes
   if (prevFilterKey !== filterKey) {

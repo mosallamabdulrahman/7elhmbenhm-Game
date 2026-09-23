@@ -15,15 +15,17 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
 import { getUserDisplayName } from "@/lib/auth";
 import GameLogo from "@/components/common/GameLogo";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
-  const [user, setUser] = useState<any | null>(null);
-  const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const user = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.authLoading);
+  const initAuth = useAuthStore((s) => s.initAuth);
+  const handleLogout = useAuthStore((s) => s.signOut);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -32,26 +34,13 @@ export default function Header() {
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setAuthLoading(false);
-    });
+    const cleanupAuth = initAuth();
 
     return () => {
       window.removeEventListener("scroll", handleScroll);
-      subscription.unsubscribe();
+      cleanupAuth();
     };
-  }, []);
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("sovereignty_was_here");
-      window.location.reload();
-    }
-  };
+  }, [initAuth]);
 
   const navLinks = [
     { name: "ابدأ لعبة", href: "/#game-setup", icon: Gamepad2 },

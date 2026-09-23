@@ -217,47 +217,30 @@ function AdminLoginForm({ onSuccess }: AdminLoginFormProps) {
   );
 }
 
+import { useAdminStore } from "@/stores/useAdminStore";
+
 interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
-  const [state, setState] = useState<"loading" | "allowed" | "denied">("loading");
-  const [displayName, setDisplayName] = useState("");
-
-  const checkAccess = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.user) {
-      setState("denied");
-      return;
-    }
-
-    // The UI gate is just for UX — every admin_* RPC and API route
-    // re-checks is_admin() itself server-side, which is the real boundary.
-    const { data: isAdmin, error } = await supabase.rpc("is_admin");
-    if (!error && isAdmin) {
-      setDisplayName(getUserDisplayName(session.user));
-      setState("allowed");
-    } else {
-      setState("denied");
-    }
-  };
+  const adminState = useAdminStore((s) => s.adminState);
+  const adminDisplayName = useAdminStore((s) => s.adminDisplayName);
+  const checkAdminAccess = useAdminStore((s) => s.checkAdminAccess);
+  const adminSignOut = useAdminStore((s) => s.adminSignOut);
 
   useEffect(() => {
-    checkAccess();
+    checkAdminAccess();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(() => {
-      checkAccess();
+      checkAdminAccess();
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [checkAdminAccess]);
 
-  if (state === "loading") {
+  if (adminState === "loading") {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <Shield className="w-8 h-8 text-cyan-400 animate-pulse" />
@@ -265,8 +248,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
-  if (state === "denied") {
-    return <AdminLoginForm onSuccess={checkAccess} />;
+  if (adminState === "denied") {
+    return <AdminLoginForm onSuccess={checkAdminAccess} />;
   }
 
   return (
@@ -279,11 +262,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       >
         {/* WordPress-style Top Admin Bar */}
         <AdminTopBar
-          displayName={displayName}
-          onSignOut={async () => {
-            await supabase.auth.signOut();
-            setState("denied");
-          }}
+          displayName={adminDisplayName}
+          onSignOut={adminSignOut}
         />
 
         {/* Page Content Shell */}

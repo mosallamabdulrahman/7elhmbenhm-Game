@@ -17,6 +17,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { groupCategories } from "@/lib/game-data";
 import CategoryGroupSection from "@/components/home-page/CategoryGroupSection";
 import { useGameSetupStore } from "@/stores/useGameSetupStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import type { QuestionCategory } from "@/types/game";
 
 export default function GameSetupSection() {
@@ -51,20 +52,18 @@ export default function GameSetupSection() {
     [categoriesList, groupsList],
   );
 
-  // Auth Listener
+  const authUser = useAuthStore((s) => s.user);
+  const initAuth = useAuthStore((s) => s.initAuth);
+
+  // Sync auth from centralized auth store
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
+    const cleanupAuth = initAuth();
+    return () => cleanupAuth();
+  }, [initAuth]);
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [setUser]);
+  useEffect(() => {
+    setUser(authUser);
+  }, [authUser, setUser]);
 
   // Realtime updates for created room
   useEffect(() => {

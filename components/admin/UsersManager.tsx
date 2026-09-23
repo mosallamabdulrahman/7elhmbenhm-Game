@@ -18,6 +18,8 @@ import { supabasePanel as supabase } from "@/lib/supabase-panel";
 import { generatePassword } from "@/lib/auth";
 import { motion, AnimatePresence } from "motion/react";
 
+import { callAdminApi } from "@/lib/admin-api";
+
 export interface AdminUser {
   user_id: string;
   email: string;
@@ -25,29 +27,7 @@ export interface AdminUser {
   created_at: string;
 }
 
-const callAdminUsersApi = async (path: string, method: string, body?: any) => {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.access_token) {
-    throw new Error("لازم تسجل دخول الأول.");
-  }
-
-  const res = await fetch(path, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(json.error || "صار خطأ غير متوقع.");
-  }
-  return json;
-};
+const callAdminUsersApi = callAdminApi;
 
 interface UserModalProps {
   user: AdminUser | null;

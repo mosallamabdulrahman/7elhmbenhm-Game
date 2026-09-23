@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { QuestionCategory, QuestionCategoryGroup } from "@/types/game";
 
-export const FIXED_TACTICAL_TOOLS = ["radar_scan", "shield", "extra_strike"];
+export const FIXED_TACTICAL_TOOLS = ["scan", "shield", "pit"];
 export const LIFELINE_TOOLS = [];
 
 export const UNIT_IMAGES: Record<string, string> = {
@@ -26,14 +26,22 @@ export const TACTICAL_TOOL_DETAILS: Record<
   string,
   { name: string; description: string }
 > = {
-  radar_scan: {
-    name: "الرادار",
-    description:
-      "يبين لك المربع اللي اخترته وكل المربعات اللي يمه (3x3). طق على مربع بخريطة الخصم.",
+  scan: {
+    name: "السكان",
+    description: "يكشف خريطة الخصم كاملة لمدة 10 ثواني فقط، بعدها ترجع تختفي.",
   },
   shield: {
     name: "الدرع",
     description: "يصد أول طقة تصيب جنودك. لازم تشغله قبل لا تبطل السؤال.",
+  },
+  pit: {
+    name: "حفرة",
+    description: "شغلها قبل السؤال — إذا أصبت جنود الخصم، نفس النقاط اللي تنخصم منه تنضاف لرصيدك مباشرة!",
+  },
+  radar_scan: {
+    name: "الرادار",
+    description:
+      "يبين لك المربع اللي اخترته وكل المربعات اللي يمه (3x3). طق على مربع بخريطة الخصم.",
   },
   extra_strike: {
     name: "طقّة زيادة",

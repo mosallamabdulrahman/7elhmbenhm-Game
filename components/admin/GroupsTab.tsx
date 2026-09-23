@@ -4,6 +4,7 @@ import React, { useState, useMemo, useRef } from "react";
 import { motion } from "motion/react";
 import { Edit2, FolderTree, Plus, Search, Trash2 } from "lucide-react";
 import { useAdminStore } from "@/stores/useAdminStore";
+import { useDragScroll } from "@/hooks/useDragScroll";
 
 interface GroupsTabProps {
   groups?: any[];
@@ -15,45 +16,30 @@ interface GroupsTabProps {
 }
 
 export default function GroupsTab(props: GroupsTabProps) {
-  const store = useAdminStore();
+  const storeGroups = useAdminStore((s) => s.groups);
+  const storeCategories = useAdminStore((s) => s.categories);
+  const storeBusy = useAdminStore((s) => s.busy);
+  const storeSetGroupModal = useAdminStore((s) => s.setGroupModal);
+  const storeDeleteGroup = useAdminStore((s) => s.deleteGroup);
+  const storeBulkAction = useAdminStore((s) => s.handleBulkGroups);
 
-  const groups = props.groups ?? store.groups;
-  const categories = props.categories ?? store.categories;
-  const busy = props.busy ?? store.busy;
-  const setGroupModal = props.setGroupModal ?? store.setGroupModal;
-  const deleteGroup = props.deleteGroup ?? store.deleteGroup;
-  const onBulkAction = props.onBulkAction ?? store.handleBulkGroups;
+  const groups = props.groups ?? storeGroups;
+  const categories = props.categories ?? storeCategories;
+  const busy = props.busy ?? storeBusy;
+  const setGroupModal = props.setGroupModal ?? storeSetGroupModal;
+  const deleteGroup = props.deleteGroup ?? storeDeleteGroup;
+  const onBulkAction = props.onBulkAction ?? storeBulkAction;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState(new Set<string>());
   const [bulkAction, setBulkAction] = useState("");
 
-  const tableRef = useRef<HTMLDivElement | null>(null);
-  const isDragging = useRef(false);
-  const startX = useRef(0);
-  const scrollLeft = useRef(0);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest("button, input, select, a")) return;
-    isDragging.current = true;
-    startX.current = e.pageX - (tableRef.current?.offsetLeft || 0);
-    scrollLeft.current = tableRef.current?.scrollLeft || 0;
-  };
-
-  const handleMouseLeave = () => {
-    isDragging.current = false;
-  };
-
-  const handleMouseUp = () => {
-    isDragging.current = false;
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging.current || !tableRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - tableRef.current.offsetLeft;
-    const walk = (x - startX.current) * 1.3;
-    tableRef.current.scrollLeft = scrollLeft.current - walk;
-  };
+  const {
+    ref: tableRef,
+    onMouseDown: handleMouseDown,
+    onMouseLeave: handleMouseLeave,
+    onMouseUp: handleMouseUp,
+    onMouseMove: handleMouseMove,
+  } = useDragScroll();
 
   const categoriesCountByGroupId = useMemo(() => {
     const map = new Map<string, number>();

@@ -48,6 +48,21 @@ export interface BattleState {
   // Radar Reveals (accumulated for the whole game per team)
   radarRevealsByTeam: any;
 
+  // Pre-game radar & Tactical Scan
+  preGameRadarManualActive: boolean;
+  preGameRadarDismissed: boolean;
+  fullScanData: {
+    isOpen: boolean;
+    enemyTeamName: string;
+    cells: Array<{ cell_index: number; unit_type: string | null }>;
+  } | null;
+
+  // Referee UI State
+  showAnswer: boolean;
+  teamSelectOpen: boolean;
+  forceGridView: boolean;
+  supportModalOpen: boolean;
+
   // Timers & Combat
   questionSeconds: number;
   timerPaused: boolean;
@@ -88,6 +103,20 @@ export interface BattleState {
     unit: string | null
   ) => void;
 
+  setPreGameRadarManualActive: (active: boolean) => void;
+  setPreGameRadarDismissed: (dismissed: boolean) => void;
+  setFullScanData: (
+    data: SetterArg<{
+      isOpen: boolean;
+      enemyTeamName: string;
+      cells: Array<{ cell_index: number; unit_type: string | null }>;
+    } | null>
+  ) => void;
+  setShowAnswer: (show: SetterArg<boolean>) => void;
+  setTeamSelectOpen: (open: SetterArg<boolean>) => void;
+  setForceGridView: (force: SetterArg<boolean>) => void;
+  setSupportModalOpen: (open: SetterArg<boolean>) => void;
+
   setQuestionSeconds: (seconds: SetterArg<number>) => void;
   setTimerPaused: (paused: boolean) => void;
   setTimerOverrideStart: (time: number | null) => void;
@@ -121,6 +150,15 @@ const initialState = {
   latestCombatEvent: null,
 
   radarRevealsByTeam: {} as Record<number, Record<number, string | null>>,
+
+  preGameRadarManualActive: false,
+  preGameRadarDismissed: false,
+  fullScanData: null,
+
+  showAnswer: false,
+  teamSelectOpen: false,
+  forceGridView: false,
+  supportModalOpen: false,
 
   questionSeconds: 60,
   timerPaused: false,
@@ -175,6 +213,21 @@ export const useBattleStore = create<BattleState>((set) => ({
         },
       },
     })),
+
+  setPreGameRadarManualActive: (preGameRadarManualActive) =>
+    set({ preGameRadarManualActive }),
+  setPreGameRadarDismissed: (preGameRadarDismissed) =>
+    set({ preGameRadarDismissed }),
+  setFullScanData: (arg) =>
+    set((s) => ({ fullScanData: resolveArg(arg, s.fullScanData) })),
+  setShowAnswer: (arg) =>
+    set((s) => ({ showAnswer: resolveArg(arg, s.showAnswer) })),
+  setTeamSelectOpen: (arg) =>
+    set((s) => ({ teamSelectOpen: resolveArg(arg, s.teamSelectOpen) })),
+  setForceGridView: (arg) =>
+    set((s) => ({ forceGridView: resolveArg(arg, s.forceGridView) })),
+  setSupportModalOpen: (arg) =>
+    set((s) => ({ supportModalOpen: resolveArg(arg, s.supportModalOpen) })),
 
   setQuestionSeconds: (arg) =>
     set((s) => ({ questionSeconds: resolveArg(arg, s.questionSeconds) })),

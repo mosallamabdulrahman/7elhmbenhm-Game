@@ -2,23 +2,13 @@
 
 import React, { useRef, useState } from "react";
 import { Loader2, Upload, X } from "lucide-react";
-import { supabasePanel as supabase } from "@/lib/supabase-panel";
-
-// ─── Media Upload (question image/audio/video) ─────────────────
-const AUDIO_EXTS = ["mp3", "ogg", "wav", "m4a"];
-const VIDEO_EXTS = ["mp4", "webm", "mov", "m4v", "ogv"];
-const IMAGE_EXTS = ["jpg", "jpeg", "png", "gif", "webp"];
-
-const mediaTypeFromExt = (ext: string): "audio" | "video" | "image" => {
-  if (AUDIO_EXTS.includes(ext)) return "audio";
-  if (VIDEO_EXTS.includes(ext)) return "video";
-  return "image";
-};
-
-const mediaTypeFromUrl = (url: string): "audio" | "video" | "image" => {
-  const ext = url.split(/[?#]/)[0].split(".").pop()?.toLowerCase() || "";
-  return mediaTypeFromExt(ext);
-};
+import {
+  ALL_MEDIA_EXTS,
+  IMAGE_EXTS,
+  mediaTypeFromExt,
+  mediaTypeFromUrl,
+  uploadFileToStorage,
+} from "@/lib/storage";
 
 interface MediaUploadProps {
   value?: string | null;
@@ -36,20 +26,8 @@ export function MediaUpload({ value, type, onChange, extra }: MediaUploadProps) 
     setError("");
     setUploading(true);
     try {
+      const publicUrl = await uploadFileToStorage(file, "question-media", ALL_MEDIA_EXTS);
       const ext = file.name.split(".").pop()?.toLowerCase() || "";
-      const allowed = [...IMAGE_EXTS, ...AUDIO_EXTS, ...VIDEO_EXTS];
-      if (!allowed.includes(ext)) throw new Error("نوع الملف غير مدعوم.");
-
-      const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const { data, error: upErr } = await supabase.storage
-        .from("question-media")
-        .upload(path, file, { cacheControl: "3600", upsert: false });
-      if (upErr) throw upErr;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("question-media").getPublicUrl(data.path);
-
       onChange(publicUrl, mediaTypeFromExt(ext));
     } catch (err: any) {
       setError(err?.message || "فشل الرفع.");
@@ -158,20 +136,7 @@ export function CategoryImageUpload({ value, onChange, extra }: CategoryImageUpl
     setError("");
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "";
-      const allowed = ["jpg", "jpeg", "png", "gif", "webp"];
-      if (!allowed.includes(ext)) throw new Error("نوع الملف غير مدعوم.");
-
-      const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const { data, error: upErr } = await supabase.storage
-        .from("category-images")
-        .upload(path, file, { cacheControl: "3600", upsert: false });
-      if (upErr) throw upErr;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("category-images").getPublicUrl(data.path);
-
+      const publicUrl = await uploadFileToStorage(file, "category-images", IMAGE_EXTS);
       onChange(publicUrl);
     } catch (err: any) {
       setError(err?.message || "فشل الرفع.");
@@ -257,20 +222,12 @@ export function AnswerImageUpload({ value, onChange, extra }: AnswerImageUploadP
     setError("");
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "";
-      const allowed = [...IMAGE_EXTS, ...AUDIO_EXTS, ...VIDEO_EXTS];
-      if (!allowed.includes(ext)) throw new Error("نوع الملف غير مدعوم. الصيغ المدعومة: صور، صوت، أو فيديو.");
-
-      const path = `answer_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const { data, error: upErr } = await supabase.storage
-        .from("question-media")
-        .upload(path, file, { cacheControl: "3600", upsert: false });
-      if (upErr) throw upErr;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("question-media").getPublicUrl(data.path);
-
+      const publicUrl = await uploadFileToStorage(
+        file,
+        "question-media",
+        ALL_MEDIA_EXTS,
+        "answer"
+      );
       onChange(publicUrl);
     } catch (err: any) {
       setError(err?.message || "فشل الرفع.");

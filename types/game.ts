@@ -38,6 +38,7 @@ export interface Team {
   points?: number;
   available_strikes: number;
   shield_active: boolean;
+  pit_active?: boolean;
   is_ready?: boolean;
   joined?: boolean;
   member_id?: string | null;
@@ -93,7 +94,7 @@ export interface Question {
 export interface CombatEvent {
   id: string;
   room_id: string;
-  event_type: "strike" | "tool" | "reveal" | "system";
+  event_type: "strike" | "tool" | "reveal" | "system" | "radar_scan" | (string & {});
   actor_team_index?: number;
   target_team_index: number;
   cell_index: number;

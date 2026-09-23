@@ -2,22 +2,29 @@
 
 import React from "react";
 import { Play, Pause, RotateCcw } from "lucide-react";
+import { useBattleStore } from "@/stores/useBattleStore";
 
 export interface TimerPillProps {
-  seconds: number;
-  isPaused: boolean;
+  seconds?: number;
+  isPaused?: boolean;
   onPause: () => void;
   onResume: () => void;
   onReset: () => void;
 }
 
 export function TimerPill({
-  seconds,
-  isPaused,
+  seconds: propSeconds,
+  isPaused: propPaused,
   onPause,
   onResume,
   onReset,
 }: TimerPillProps) {
+  const storeSeconds = useBattleStore((s) => s.questionSeconds);
+  const storePaused = useBattleStore((s) => s.timerPaused);
+
+  const seconds = propSeconds !== undefined ? propSeconds : storeSeconds;
+  const isPaused = propPaused !== undefined ? propPaused : storePaused;
+
   const mm = String(Math.floor(Math.max(0, seconds) / 60)).padStart(2, "0");
   const ss = String(Math.max(0, seconds) % 60).padStart(2, "0");
 

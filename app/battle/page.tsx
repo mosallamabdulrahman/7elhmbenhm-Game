@@ -15,6 +15,7 @@ import {
   Share2,
   LockKeyhole,
   LogOut,
+  Radar,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { QRCodeSVG } from "qrcode.react";
@@ -25,8 +26,11 @@ import {
   CombatEventModal,
 } from "@/components/battle/CombatShared";
 import { RefereeGameScreen } from "@/components/battle/RefereeGameScreen";
+import { FullScanModal } from "@/components/battle/modals/FullScanModal";
+import { PreGameRadarScreen } from "@/components/battle/referee/PreGameRadarScreen";
 import { useBattleAudio, markStrikeAsPlayed } from "@/hooks/useBattleAudio";
 import { useBattleStore } from "@/stores/useBattleStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { UNIT_IMAGES, UNIT_NAMES } from "@/lib/game-data";
 import GameLogo from "@/components/common/GameLogo";
 import Image from "next/image";
@@ -46,6 +50,7 @@ const TEAM_PUBLIC_COLUMNS = [
   "tools",
   "used_tools",
   "shield_active",
+  "pit_active",
   "created_at",
   "updated_at",
 ].join(",");
@@ -72,14 +77,16 @@ function BattlePageInner() {
   const [mounted, setMounted] = useState(false);
 
   // Zustand Battle Store
+  const user = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.authLoading);
+  const initAuth = useAuthStore((s) => s.initAuth);
+
   const {
     roomId,
     teamIndex,
     role,
     teamToken,
     teamLinkTokens,
-    user,
-    authLoading,
     room,
     teams,
     questions,
@@ -92,7 +99,6 @@ function BattlePageInner() {
     isAutoFilling,
     latestCombatEvent,
     radarRevealsByTeam,
-    questionSeconds,
     timerPaused,
     timerOverrideStart,
     lastPlacedCell,
@@ -103,8 +109,6 @@ function BattlePageInner() {
     setRole,
     setTeamToken,
     setTeamLinkTokens,
-    setUser,
-    setAuthLoading,
     setRoom,
     setTeams,
     setQuestions,
@@ -123,6 +127,12 @@ function BattlePageInner() {
     setLastPlacedCell,
     setSelectedUnit,
     setAlertMsg,
+    preGameRadarManualActive,
+    preGameRadarDismissed,
+    fullScanData,
+    setPreGameRadarManualActive,
+    setPreGameRadarDismissed,
+    setFullScanData,
   } = useBattleStore();
 
   const userId = user?.id || null;
@@ -292,7 +302,7 @@ function BattlePageInner() {
 
   const handleResumeTimer = () => {
     const total = getActiveQuestionTimerSeconds();
-    const elapsedAtPause = total - questionSeconds;
+    const elapsedAtPause = total - useBattleStore.getState().questionSeconds;
     setTimerOverrideStart(Date.now() - elapsedAtPause * 1000);
     setTimerPaused(false);
   };
@@ -367,54 +377,12 @@ function BattlePageInner() {
 
   // 1b. Auth checking (mount-only)
   useEffect(() => {
-    let isActive = true;
     setMounted(true);
-
-    const restoreSession = async () => {
-      const recentlyLoggedIn = Boolean(
-        window.sessionStorage.getItem("sovereignty_login_verified"),
-      );
-      const maxAttempts = recentlyLoggedIn ? 5 : 2;
-      let restoredUser = null;
-
-      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (session?.user) {
-          restoredUser = session.user;
-          break;
-        }
-        await new Promise((resolve) => window.setTimeout(resolve, 200));
-      }
-
-      if (!isActive) return;
-      setUser(restoredUser);
-      setAuthLoading(false);
-      window.sessionStorage.removeItem("sovereignty_login_verified");
-    };
-
-    restoreSession();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!isActive) return;
-
-      if (session?.user) {
-        setUser(session.user);
-        setAuthLoading(false);
-      } else if (event === "SIGNED_OUT") {
-        setUser(null);
-        setAuthLoading(false);
-      }
-    });
-
+    const cleanupAuth = initAuth();
     return () => {
-      isActive = false;
-      subscription.unsubscribe();
+      cleanupAuth();
     };
-  }, []);
+  }, [initAuth]);
 
   // 2. Fetch Room & associated Team records from Supabase
   const loadDatabaseData = useCallback(async () => {
@@ -601,6 +569,34 @@ function BattlePageInner() {
             new Date(a.created_at || 0).getTime(),
         );
       });
+
+      // Reconstruct radarRevealsByTeam from in-game combat_events only
+      const radarEvents = (eventData || []).filter(
+        (e: any) =>
+          e.event_type === "radar_scan" &&
+          Array.isArray(e.metadata?.cells) &&
+          !e.metadata?.pregame &&
+          e.result !== "pregame_radar",
+      );
+      if (radarEvents.length > 0) {
+        setRadarRevealsByTeam((prev: any) => {
+          const updated = { ...(prev || {}) };
+          radarEvents.forEach((ev: any) => {
+            const targetIdx = ev.target_team_index;
+            if (targetIdx) {
+              const current = updated[targetIdx] || [];
+              const merged = [...current];
+              ev.metadata.cells.forEach((cell: any) => {
+                if (!merged.some((c: any) => c.cell_index === cell.cell_index)) {
+                  merged.push(cell);
+                }
+              });
+              updated[targetIdx] = merged;
+            }
+          });
+          return updated;
+        });
+      }
     } catch (err: any) {
       console.error(err);
       setDbError(err?.message || "ما قدرنا نحمل بيانات حيلهم بينهم.");
@@ -1222,6 +1218,22 @@ function BattlePageInner() {
 
         // Server returns the created or existing event jsonb directly
         if (serverEvent && serverEvent.id) {
+          if (serverEvent.metadata?.pit_stolen_points > 0) {
+            const stolen = serverEvent.metadata.pit_stolen_points;
+            const attacker = teams.find((t) => t.team_index === attackerTeamIndex);
+            showAlert(
+              `🔥 حفرة ناجحة! تم خصم ${stolen} نقطة من الخصم وإضافتها لرصيد ${attacker?.name || "فريقك"}!`,
+              "success",
+            );
+            setTeams((prev) =>
+              prev.map((t) =>
+                t.team_index === attackerTeamIndex
+                  ? { ...t, pit_active: false, score: (t.score || 0) + stolen }
+                  : t,
+              ),
+            );
+          }
+
           setCombatEvents((prev) => {
             const filtered = (prev || []).filter(
               (e) =>
@@ -1276,9 +1288,9 @@ function BattlePageInner() {
     cellIndex?: number,
   ) =>
     runAction(async () => {
-      // Shield and Extra Strike must be activated BEFORE question reveal
+      // Shield, Pit, and Extra Strike must be activated BEFORE question reveal
       if (
-        (toolId === "shield" || toolId === "extra_strike") &&
+        (toolId === "shield" || toolId === "extra_strike" || toolId === "pit") &&
         room?.active_question_id
       ) {
         throw new Error("لازم تشغل هالفزعة قبل لا تبطل السؤال.");
@@ -1291,6 +1303,23 @@ function BattlePageInner() {
         p_cell_index: cellIndex,
       });
       if (error) throw error;
+
+      if (toolId === "pit") {
+        setTeams((prev: any[]) =>
+          prev.map((t) =>
+            t.team_index === forTeamIndex ? { ...t, pit_active: true } : t,
+          ),
+        );
+      }
+
+      if (toolId === "scan") {
+        const targetTeam = teams.find((t) => t.team_index !== forTeamIndex);
+        setFullScanData({
+          isOpen: true,
+          enemyTeamName: targetTeam?.name || "الفريق المنافس",
+          cells: data?.cells || [],
+        });
+      }
 
       if (toolId === "radar_scan") {
         // Radar reveals the OPPONENT's board (same attacker→target
@@ -1312,6 +1341,22 @@ function BattlePageInner() {
         }
       }
     });
+
+  // Pre-game radar execution by referee (isolated to pre-game screen only)
+  const handleExecutePreGameRadar = async (
+    forTeamIndex: number,
+    cellIndex: number,
+  ) => {
+    const { data, error } = await supabase.rpc("execute_pregame_radar", {
+      p_room_id: roomId,
+      p_team_index: forTeamIndex,
+      p_cell_index: cellIndex,
+    });
+    if (error) throw error;
+
+    const newCells = data?.cells || [];
+    return { cells: newCells };
+  };
 
   const handleExitGame = () =>
     runAction(async () => {
@@ -1475,6 +1520,58 @@ function BattlePageInner() {
     );
   }
 
+  // Check if referee should be in pre-game radar phase
+  const pregameScansCount = (combatEvents || []).filter(
+    (e) => e.event_type === "radar_scan" && e.metadata?.pregame,
+  ).length;
+  const hasGameStarted =
+    (combatEvents || []).some((e) => e.event_type === "strike") ||
+    Boolean(room?.active_question_id) ||
+    Boolean(room?.winner_team_index) ||
+    room?.status === "finished";
+
+  const shouldShowPreGameRadar =
+    role === "judge" &&
+    !preGameRadarDismissed &&
+    !hasGameStarted &&
+    (preGameRadarManualActive ||
+      (room?.status === "playing" && pregameScansCount < 2));
+
+  if (roomId && room && shouldShowPreGameRadar) {
+    if (room.judge_id !== user?.id) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4 dir-rtl">
+          <div className="rounded-3xl border border-rose-200 bg-white p-8 text-center shadow-xl">
+            <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto" />
+            <h2 className="mt-4 font-bold text-slate-950">
+              هالشاشة بس حق حكم الغرفة
+            </h2>
+            <Link
+              href="/"
+              className="mt-5 inline-block text-sm font-bold text-cyan-600"
+            >
+              ارجع للرئيسية
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <BattleAlert alert={alertMsg} />
+        <PreGameRadarScreen
+          onExecuteRadar={handleExecutePreGameRadar}
+          onComplete={() => {
+            setPreGameRadarDismissed(true);
+            setPreGameRadarManualActive(false);
+          }}
+          onExit={handleExitGame}
+        />
+      </>
+    );
+  }
+
   if (
     roomId &&
     room &&
@@ -1504,16 +1601,6 @@ function BattlePageInner() {
       <>
         <BattleAlert alert={alertMsg} />
         <RefereeGameScreen
-          room={room}
-          teams={teams}
-          questions={questions}
-          events={combatEvents}
-          answerText={activeAnswer.text}
-          answerImageUrl={activeAnswer.imageUrl}
-          isBusy={isActionBusy}
-          questionSeconds={questionSeconds}
-          timerPaused={timerPaused}
-          radarRevealsByTeam={radarRevealsByTeam}
           onSelectQuestion={handleSelectQuestion}
           onResolveQuestion={handleResolveQuestion}
           onResolveDraw={handleResolveDraw}
@@ -1534,6 +1621,15 @@ function BattlePageInner() {
           event={latestCombatEvent}
           onClose={() => setLatestCombatEvent(null)}
         />
+        {fullScanData && (
+          <FullScanModal
+            isOpen={fullScanData.isOpen}
+            enemyTeamName={fullScanData.enemyTeamName}
+            cells={fullScanData.cells}
+            durationSeconds={10}
+            onClose={() => setFullScanData(null)}
+          />
+        )}
       </>
     );
   }
@@ -1799,6 +1895,37 @@ function BattlePageInner() {
                 </div>
               </div>
             </div>
+
+            {/* If both teams are ready, referee can start the pre-game radar phase */}
+            {team1Obj?.is_ready && team2Obj?.is_ready && (
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 text-white p-6 rounded-3xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-cyan-400/30"
+              >
+                <div className="flex items-center gap-3.5 text-right">
+                  <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+                    <Radar className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-sans font-bold text-lg">
+                      الفريقان جاهزان لبدء المعركة! ⚔️
+                    </h3>
+                    <p className="text-xs text-cyan-100">
+                      اضغط للبدء بمرحلة استطلاع الرادار لكل فريق قبل دخول غرفة الأسئلة.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPreGameRadarManualActive(true)}
+                  className="w-full sm:w-auto px-6 py-3.5 bg-white text-cyan-800 hover:bg-cyan-50 font-bold text-sm rounded-2xl shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 cursor-pointer shrink-0"
+                >
+                  <Radar className="w-5 h-5 text-cyan-700" />
+                  بدء مرحلة استطلاع الرادار 🎯
+                </button>
+              </motion.div>
+            )}
           </div>
 
           {/* Right Panel: Selected Params Summary with Large Categories */}

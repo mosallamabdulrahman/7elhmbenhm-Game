@@ -12,7 +12,6 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
@@ -200,63 +199,44 @@ function RestartTeamsModal({
   );
 }
 
-export default function MyGamesPage() {
-  const [user, setUser] = useState<any | null>(null);
-  const [authLoading, setAuthLoading] = useState<boolean>(true);
-  const [rooms, setRooms] = useState<any[]>([]);
-  const [categoryMap, setCategoryMap] = useState<Record<string, any>>({});
-  const [loading, setLoading] = useState<boolean>(true);
-  const [alertMsg, setAlertMsg] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>("");
+import { useMyGamesStore } from "@/stores/useMyGamesStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 
-  const [choiceGroup, setChoiceGroup] = useState<any | null>(null);
-  const [restartGroup, setRestartGroup] = useState<any | null>(null);
-  const [busy, setBusy] = useState<boolean>(false);
-  const [restartError, setRestartError] = useState<string | null>(null);
+export default function MyGamesPage() {
+  const user = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.authLoading);
+  const initAuth = useAuthStore((s) => s.initAuth);
+
+  const {
+    rooms,
+    categoryMap,
+    loading,
+    busy,
+    searchQuery,
+    alertMsg,
+    choiceGroup,
+    restartGroup,
+    restartError,
+    setSearchQuery,
+    setAlertMsg,
+    setBusy,
+    setChoiceGroup,
+    setRestartGroup,
+    setRestartError,
+    fetchUserGames,
+    resumeGameRoom,
+    restartGameRoom,
+  } = useMyGamesStore();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setAuthLoading(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setAuthLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+    const cleanupAuth = initAuth();
+    return () => cleanupAuth();
+  }, [initAuth]);
 
   useEffect(() => {
     if (!user) return;
-
-    const loadData = async () => {
-      setLoading(true);
-      const [roomsResult, categoriesResult] = await Promise.all([
-        supabase
-          .from("game_rooms")
-          .select("*")
-          .eq("judge_id", user.id)
-          .order("created_at", { ascending: false }),
-        supabase.from("question_categories").select("id,name,image_url"),
-      ]);
-
-      if (!roomsResult.error) setRooms(roomsResult.data || []);
-      if (!categoriesResult.error) {
-        const map: Record<string, any> = {};
-        (categoriesResult.data || []).forEach((cat: any) => {
-          map[cat.id] = cat;
-        });
-        setCategoryMap(map);
-      }
-      setLoading(false);
-    };
-
-    loadData();
-  }, [user]);
+    fetchUserGames(user.id);
+  }, [user, fetchUserGames]);
 
   const groups = useMemo(() => {
     const byName = new Map<string, any[]>();
@@ -296,10 +276,7 @@ export default function MyGamesPage() {
     setAlertMsg(null);
     try {
       if (isResumable(room)) {
-        const { error } = await supabase.rpc("resume_game_room", {
-          p_room_id: room.id,
-        });
-        if (error) throw error;
+        await resumeGameRoom(room.id);
       }
       window.location.assign(`/battle?room_id=${room.id}&role=judge`);
     } catch (err: any) {
@@ -310,19 +287,13 @@ export default function MyGamesPage() {
 
   const handleRestartSubmit = async (team1Name: string, team2Name: string) => {
     if (!restartGroup) return;
-    setBusy(true);
-    setRestartError(null);
-    try {
-      const { data, error } = await supabase.rpc("restart_game_room", {
-        p_source_room_id: restartGroup.latest.id,
-        p_team_1_name: team1Name,
-        p_team_2_name: team2Name,
-      });
-      if (error) throw error;
-      window.location.assign(`/battle?room_id=${data.room_id}&role=judge`);
-    } catch (err: any) {
-      setRestartError(err.message || "ما قدرنا نبدأ اللعبة من جديد.");
-      setBusy(false);
+    const res = await restartGameRoom(
+      restartGroup.latest.id,
+      team1Name,
+      team2Name,
+    );
+    if (res.success && res.data?.room_id) {
+      window.location.assign(`/battle?room_id=${res.data.room_id}&role=judge`);
     }
   };
 

@@ -11,17 +11,18 @@ import { TeamToolsCard } from "./referee/TeamControls";
 import { GameBottomFooter } from "./referee/GameBottomFooter";
 import { RefereeHeader } from "./referee/RefereeHeader";
 import { ActiveQuestionView } from "./referee/ActiveQuestionView";
+import { useBattleStore } from "@/stores/useBattleStore";
 
 interface RefereeGameScreenProps {
-  room: any;
-  teams: any[];
-  questions: any[];
-  events: any[];
+  room?: any;
+  teams?: any[];
+  questions?: any[];
+  events?: any[];
   answerText?: string | null;
   answerImageUrl?: string | null;
-  isBusy: boolean;
-  questionSeconds: number;
-  timerPaused: boolean;
+  isBusy?: boolean;
+  questionSeconds?: number;
+  timerPaused?: boolean;
   radarRevealsByTeam?: Record<number, any[]>;
   onSelectQuestion: (q: any) => void;
   onResolveQuestion: (questionId: string, winnerIndex: number | null) => void;
@@ -41,16 +42,14 @@ interface RefereeGameScreenProps {
 }
 
 export function RefereeGameScreen({
-  room,
-  teams,
-  questions,
-  events,
-  answerText,
-  answerImageUrl,
-  isBusy,
-  questionSeconds,
-  timerPaused,
-  radarRevealsByTeam,
+  room: propRoom,
+  teams: propTeams,
+  questions: propQuestions,
+  events: propEvents,
+  answerText: propAnswerText,
+  answerImageUrl: propAnswerImageUrl,
+  isBusy: propIsBusy,
+  radarRevealsByTeam: propRadarRevealsByTeam,
   onSelectQuestion,
   onResolveQuestion,
   onResolveDraw,
@@ -67,10 +66,34 @@ export function RefereeGameScreen({
   onCancelStrike,
   onExit,
 }: RefereeGameScreenProps) {
-  const [showAnswer, setShowAnswer] = useState(false);
-  const [teamSelectOpen, setTeamSelectOpen] = useState(false);
-  const [forceGridView, setForceGridView] = useState(false);
-  const [lastQuestionId, setLastQuestionId] = useState(room.active_question_id);
+  const storeRoom = useBattleStore((s) => s.room);
+  const storeTeams = useBattleStore((s) => s.teams);
+  const storeQuestions = useBattleStore((s) => s.questions);
+  const storeEvents = useBattleStore((s) => s.combatEvents);
+  const storeAnswerText = useBattleStore((s) => s.activeAnswer.text);
+  const storeAnswerImageUrl = useBattleStore((s) => s.activeAnswer.imageUrl);
+  const storeIsBusy = useBattleStore((s) => s.isActionBusy);
+  const storeRadarReveals = useBattleStore((s) => s.radarRevealsByTeam);
+
+  const room = propRoom ?? storeRoom;
+  const teams = propTeams ?? storeTeams;
+  const questions = propQuestions ?? storeQuestions;
+  const events = propEvents ?? storeEvents;
+  const answerText = propAnswerText !== undefined ? propAnswerText : storeAnswerText;
+  const answerImageUrl = propAnswerImageUrl !== undefined ? propAnswerImageUrl : storeAnswerImageUrl;
+  const isBusy = propIsBusy !== undefined ? propIsBusy : storeIsBusy;
+  const radarRevealsByTeam = propRadarRevealsByTeam ?? storeRadarReveals;
+
+  const showAnswer = useBattleStore((s) => s.showAnswer);
+  const setShowAnswer = useBattleStore((s) => s.setShowAnswer);
+  const teamSelectOpen = useBattleStore((s) => s.teamSelectOpen);
+  const setTeamSelectOpen = useBattleStore((s) => s.setTeamSelectOpen);
+  const forceGridView = useBattleStore((s) => s.forceGridView);
+  const setForceGridView = useBattleStore((s) => s.setForceGridView);
+  const supportModalOpen = useBattleStore((s) => s.supportModalOpen);
+  const setSupportModalOpen = useBattleStore((s) => s.setSupportModalOpen);
+
+  const [lastQuestionId, setLastQuestionId] = useState(room?.active_question_id);
   const [mediaRevealed, setMediaRevealed] = useState(false);
   const [radarModalTeam, setRadarModalTeam] = useState<number | null>(null);
   const [strikeModalTeam, setStrikeModalTeam] = useState<number | null>(null);
@@ -81,7 +104,8 @@ export function RefereeGameScreen({
     null,
   );
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
-  const [supportModalOpen, setSupportModalOpen] = useState(false);
+
+  if (!room) return null;
 
   const activeQuestion = questions.find(
     (question) => question.id === room.active_question_id,
@@ -248,8 +272,6 @@ export function RefereeGameScreen({
                 answerText={answerText}
                 answerImageUrl={answerImageUrl}
                 isBusy={isBusy}
-                questionSeconds={questionSeconds}
-                timerPaused={timerPaused}
                 mediaRevealed={mediaRevealed}
                 onPauseTimer={onPauseTimer}
                 onResumeTimer={onResumeTimer}

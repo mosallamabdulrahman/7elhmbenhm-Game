@@ -9,6 +9,8 @@ import {
   Shield,
   Radar,
   Star,
+  Scan,
+  Flame,
 } from "lucide-react";
 import { TACTICAL_TOOL_DETAILS } from "@/lib/game-data";
 
@@ -194,16 +196,20 @@ export function HelperToolsSection({
                   : "bg-white text-slate-800 hover:border-cyan-500 hover:bg-cyan-50 hover:scale-105 cursor-pointer"
               }`}
             >
-              {toolId === "phone_friend" || toolId === "phone" ? (
+              {toolId === "scan" ? (
+                <Scan className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-600" />
+              ) : toolId === "pit" ? (
+                <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600" />
+              ) : toolId === "shield" ? (
+                <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-700" />
+              ) : isRadar ? (
+                <Radar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-700" />
+              ) : toolId === "phone_friend" || toolId === "phone" ? (
                 <PhoneCall className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-700" />
               ) : toolId === "ask_audience" || toolId === "peace" ? (
                 <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-700" />
               ) : toolId === "swap_question" || toolId === "swap" ? (
                 <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-700" />
-              ) : toolId === "shield" ? (
-                <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-700" />
-              ) : isRadar ? (
-                <Radar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-700" />
               ) : (
                 <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-700" />
               )}
@@ -235,7 +241,7 @@ export function TeamToolsCard({
   const tools =
     team.tools && team.tools.length > 0
       ? team.tools
-      : ["phone_friend", "ask_audience", "swap_question"];
+      : ["scan", "shield", "pit"];
 
   return (
     <div className="flex flex-col items-center gap-2 py-4 px-3 bg-white rounded-3xl border border-slate-200 shadow-sm w-full text h-fit-center">
@@ -278,16 +284,20 @@ export function TeamToolsCard({
                   : "bg-white text-slate-800 hover:border-cyan-500 hover:bg-cyan-50 hover:scale-105 cursor-pointer"
               }`}
             >
-              {toolId === "phone_friend" || toolId === "phone" ? (
+              {toolId === "scan" ? (
+                <Scan className="w-4 h-4 text-cyan-600" />
+              ) : toolId === "pit" ? (
+                <Flame className="w-4 h-4 text-amber-600" />
+              ) : toolId === "shield" ? (
+                <Shield className="w-4 h-4 text-slate-700" />
+              ) : isRadar ? (
+                <Radar className="w-4 h-4 text-slate-700" />
+              ) : toolId === "phone_friend" || toolId === "phone" ? (
                 <PhoneCall className="w-4 h-4 text-slate-700" />
               ) : toolId === "ask_audience" || toolId === "peace" ? (
                 <Users className="w-4 h-4 text-slate-700" />
               ) : toolId === "swap_question" || toolId === "swap" ? (
                 <RotateCcw className="w-4 h-4 text-slate-700" />
-              ) : toolId === "shield" ? (
-                <Shield className="w-4 h-4 text-slate-700" />
-              ) : isRadar ? (
-                <Radar className="w-4 h-4 text-slate-700" />
               ) : (
                 <Star className="w-4 h-4 text-slate-700" />
               )}

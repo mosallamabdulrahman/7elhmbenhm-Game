@@ -4,6 +4,7 @@ import { useState, useMemo, useRef } from "react";
 import { motion } from "motion/react";
 import { ChevronDown, ChevronUp, Search } from "lucide-react";
 import { useAdminStore } from "@/stores/useAdminStore";
+import { useDragScroll } from "@/hooks/useDragScroll";
 
 interface CategoriesTabProps {
   categories?: any[];
@@ -23,22 +24,40 @@ interface CategoriesTabProps {
 }
 
 export default function CategoriesTab(props: CategoriesTabProps) {
-  const store = useAdminStore();
+  const storeCategories = useAdminStore((s) => s.categories);
+  const storeGroups = useAdminStore((s) => s.groups);
+  const storeQuestions = useAdminStore((s) => s.questions);
+  const storeCategoryUsage = useAdminStore((s) => s.categoryUsage);
+  const storeBusy = useAdminStore((s) => s.busy);
+  const storeSearchQuery = useAdminStore((s) => s.searchQuery);
+  const storeSetSearchQuery = useAdminStore((s) => s.setSearchQuery);
+  const storeSetCatModal = useAdminStore((s) => s.setCatModal);
+  const storeDeleteCategory = useAdminStore((s) => s.deleteCategory);
+  const storeStatusEditFor = useAdminStore((s) => s.categoryStatusEditFor);
+  const storeSetStatusEditFor = useAdminStore((s) => s.setCategoryStatusEditFor);
+  const storeInlineStatusChange = useAdminStore((s) => s.handleInlineCategoryStatusChange);
+  const storeBulkAction = useAdminStore((s) => s.handleBulkCategories);
 
-  const categories = props.categories ?? store.categories;
-  const filteredCategories = props.filteredCategories ?? store.getFilteredCategories();
-  const groups = props.groups ?? store.groups;
-  const questions = props.questions ?? store.questions;
-  const categoryUsage = props.categoryUsage ?? store.categoryUsage;
-  const busy = props.busy ?? store.busy;
-  const searchQuery = props.searchQuery ?? store.searchQuery;
-  const setSearchQuery = props.setSearchQuery ?? store.setSearchQuery;
-  const setCatModal = props.setCatModal ?? store.setCatModal;
-  const deleteCategory = props.deleteCategory ?? store.deleteCategory;
-  const statusEditFor = props.statusEditFor ?? store.categoryStatusEditFor;
-  const setStatusEditFor = props.setStatusEditFor ?? store.setCategoryStatusEditFor;
-  const onInlineStatusChange = props.onInlineStatusChange ?? store.handleInlineCategoryStatusChange;
-  const onBulkAction = props.onBulkAction ?? store.handleBulkCategories;
+  const categories = props.categories ?? storeCategories;
+  const groups = props.groups ?? storeGroups;
+  const questions = props.questions ?? storeQuestions;
+  const categoryUsage = props.categoryUsage ?? storeCategoryUsage;
+  const busy = props.busy ?? storeBusy;
+  const searchQuery = props.searchQuery ?? storeSearchQuery;
+  const setSearchQuery = props.setSearchQuery ?? storeSetSearchQuery;
+  const setCatModal = props.setCatModal ?? storeSetCatModal;
+  const deleteCategory = props.deleteCategory ?? storeDeleteCategory;
+  const statusEditFor = props.statusEditFor ?? storeStatusEditFor;
+  const setStatusEditFor = props.setStatusEditFor ?? storeSetStatusEditFor;
+  const onInlineStatusChange = props.onInlineStatusChange ?? storeInlineStatusChange;
+  const onBulkAction = props.onBulkAction ?? storeBulkAction;
+
+  const filteredCategories = useMemo(() => {
+    if (props.filteredCategories) return props.filteredCategories;
+    if (!searchQuery.trim()) return categories;
+    const q = searchQuery.toLowerCase();
+    return categories.filter((c) => c.name?.toLowerCase().includes(q));
+  }, [props.filteredCategories, categories, searchQuery]);
   const [expandedIds, setExpandedIds] = useState(new Set<string>());
   const [selectedIds, setSelectedIds] = useState(new Set<string>());
   const [bulkAction, setBulkAction] = useState("");
@@ -49,33 +68,13 @@ export default function CategoriesTab(props: CategoriesTabProps) {
     [groups],
   );
 
-  const tableRef = useRef<HTMLDivElement | null>(null);
-  const isDragging = useRef(false);
-  const startX = useRef(0);
-  const scrollLeft = useRef(0);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest("button, input, select, a")) return;
-    isDragging.current = true;
-    startX.current = e.pageX - (tableRef.current?.offsetLeft || 0);
-    scrollLeft.current = tableRef.current?.scrollLeft || 0;
-  };
-
-  const handleMouseLeave = () => {
-    isDragging.current = false;
-  };
-
-  const handleMouseUp = () => {
-    isDragging.current = false;
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging.current || !tableRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - tableRef.current.offsetLeft;
-    const walk = (x - startX.current) * 1.3;
-    tableRef.current.scrollLeft = scrollLeft.current - walk;
-  };
+  const {
+    ref: tableRef,
+    onMouseDown: handleMouseDown,
+    onMouseLeave: handleMouseLeave,
+    onMouseUp: handleMouseUp,
+    onMouseMove: handleMouseMove,
+  } = useDragScroll();
 
   const isAllSelected =
     filteredCategories.length > 0 &&

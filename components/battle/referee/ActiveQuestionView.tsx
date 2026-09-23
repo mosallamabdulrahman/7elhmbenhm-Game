@@ -14,8 +14,8 @@ export interface ActiveQuestionViewProps {
   answerText?: string | null;
   answerImageUrl?: string | null;
   isBusy: boolean;
-  questionSeconds: number;
-  timerPaused: boolean;
+  questionSeconds?: number;
+  timerPaused?: boolean;
   mediaRevealed: boolean;
   onPauseTimer: () => void;
   onResumeTimer: () => void;

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, Shield } from "lucide-react";
+import { Shield, X } from "lucide-react";
 import { BoardModal } from "./BoardModal";
 import { getCombatCellVisual } from "../battle-helpers";
 import { UNIT_NAMES } from "@/lib/game-data";

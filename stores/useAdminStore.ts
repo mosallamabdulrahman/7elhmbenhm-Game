@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { supabasePanel as supabase } from "@/lib/supabase-panel";
 import { callAdminApi } from "@/lib/admin-api";
 import { DIFFICULTY_STRIKES } from "@/lib/admin-constants";
+import { getUserDisplayName } from "@/lib/auth";
 import type {
   AdminQuestion,
   AdminTab,
@@ -56,6 +57,9 @@ export interface AdminStoreState {
   questionStats: Record<string, QuestionStats>;
   categoryUsage: Record<string, number>;
   unreadSupportCount: number;
+  supportMessages: any[];
+  supportLoading: boolean;
+  supportBusy: boolean;
 
   // UI & Loading
   loading: boolean;
@@ -103,6 +107,9 @@ export interface AdminStoreState {
   loadQuestionStats: () => Promise<void>;
   loadCategoryUsage: () => Promise<void>;
   loadUnreadSupportCount: () => Promise<void>;
+  loadSupportMessages: (manual?: boolean) => Promise<void>;
+  updateSupportStatus: (id: string, status: string) => Promise<void>;
+  deleteSupportMessages: (ids: string[]) => Promise<void>;
 
   // Actions: CRUD Groups
   saveGroup: (form: any) => Promise<void>;
@@ -134,6 +141,12 @@ export interface AdminStoreState {
   getFilteredQuestions: () => AdminQuestion[];
   getFilteredCategories: () => QuestionCategory[];
   getCategoryMap: () => Record<string, QuestionCategory>;
+
+  // Admin Auth / Gate
+  adminState: "loading" | "allowed" | "denied";
+  adminDisplayName: string;
+  checkAdminAccess: () => Promise<void>;
+  adminSignOut: () => Promise<void>;
 }
 
 export const useAdminStore = create<AdminStoreState>((set, get) => ({
@@ -142,12 +155,18 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
   filterCategory: "",
   filterDifficulty: "",
 
+  adminState: "loading",
+  adminDisplayName: "",
+
   groups: [],
   categories: [],
   questions: [],
   questionStats: {},
   categoryUsage: {},
   unreadSupportCount: 0,
+  supportMessages: [],
+  supportLoading: true,
+  supportBusy: false,
 
   loading: true,
   busy: false,
@@ -160,6 +179,37 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
   difficultyEditFor: null,
   statusEditFor: null,
   categoryStatusEditFor: null,
+
+  checkAdminAccess: async () => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.user) {
+        set({ adminState: "denied", adminDisplayName: "" });
+        return;
+      }
+
+      const { data: isAdmin, error } = await supabase.rpc("is_admin");
+      if (!error && isAdmin) {
+        const name = getUserDisplayName(session.user);
+        set({ adminState: "allowed", adminDisplayName: name });
+      } else {
+        set({ adminState: "denied", adminDisplayName: "" });
+      }
+    } catch {
+      set({ adminState: "denied", adminDisplayName: "" });
+    }
+  },
+
+  adminSignOut: async () => {
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      set({ adminState: "denied", adminDisplayName: "" });
+    }
+  },
 
   setTab: (newTab) => {
     set({ tab: newTab, searchQuery: "" });
@@ -275,12 +325,70 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
   loadUnreadSupportCount: async () => {
     try {
       const data = await callAdminApi("/api/support");
-      const unread = (data.messages || []).filter(
-        (m: any) => m.status === "unread"
-      ).length;
-      set({ unreadSupportCount: unread });
+      const msgs = data.messages || [];
+      const unread = msgs.filter((m: any) => m.status === "unread").length;
+      set({ supportMessages: msgs, unreadSupportCount: unread });
     } catch {
       // ignore
+    }
+  },
+
+  loadSupportMessages: async (manual?: boolean) => {
+    set({ supportBusy: true });
+    try {
+      const data = await callAdminApi("/api/support");
+      const msgs = data.messages || [];
+      const unread = msgs.filter((m: any) => m.status === "unread").length;
+      set({
+        supportMessages: msgs,
+        unreadSupportCount: unread,
+        supportLoading: false,
+      });
+      if (manual) {
+        get().notify("تم تحديث رسائل الدعم بنجاح.", "success");
+      }
+    } catch (err: any) {
+      console.error("loadSupportMessages error:", err);
+      set({ supportLoading: false });
+      if (manual) {
+        get().notify(err?.message || "فشل تحميل رسائل الدعم.", "error");
+      }
+    } finally {
+      set({ supportBusy: false });
+    }
+  },
+
+  updateSupportStatus: async (id: string, status: string) => {
+    set({ supportBusy: true });
+    try {
+      await callAdminApi("/api/support", "PATCH", { id, status });
+      const updated = get().supportMessages.map((m) =>
+        m.id === id ? { ...m, status } : m
+      );
+      const unread = updated.filter((m: any) => m.status === "unread").length;
+      set({ supportMessages: updated, unreadSupportCount: unread });
+      get().notify("تم تحديث حالة الرسالة بنجاح.", "success");
+    } catch (err: any) {
+      console.error(err);
+      get().notify(err?.message || "حدث خطأ أثناء التحديث.", "error");
+    } finally {
+      set({ supportBusy: false });
+    }
+  },
+
+  deleteSupportMessages: async (ids: string[]) => {
+    set({ supportBusy: true });
+    try {
+      await callAdminApi("/api/support", "DELETE", { ids });
+      const updated = get().supportMessages.filter((m) => !ids.includes(m.id));
+      const unread = updated.filter((m: any) => m.status === "unread").length;
+      set({ supportMessages: updated, unreadSupportCount: unread });
+      get().notify("تم الحذف بنجاح.", "success");
+    } catch (err: any) {
+      console.error(err);
+      get().notify(err?.message || "حدث خطأ أثناء الحذف.", "error");
+    } finally {
+      set({ supportBusy: false });
     }
   },
 

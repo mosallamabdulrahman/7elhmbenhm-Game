@@ -19,12 +19,15 @@ SET
 FROM public.question_bank qb
 WHERE rq.question_bank_id = qb.id;
 
--- 4. Update create_game_room function to accept and insert show_question_first & image_duration
+-- 4. Drop any ambiguous overloaded create_game_room function
+DROP FUNCTION IF EXISTS public.create_game_room(text, text, text, jsonb, jsonb);
+
+-- 5. Canonical create_game_room function with text[] for selected_categories
 CREATE OR REPLACE FUNCTION public.create_game_room(
   p_game_name text,
   p_team_1_name text,
   p_team_2_name text,
-  p_selected_categories jsonb,
+  p_selected_categories text[],
   p_questions jsonb
 )
 RETURNS jsonb
@@ -42,19 +45,41 @@ declare
   v_question record;
   v_fixed_tools text[] := array['radar_scan', 'shield', 'extra_strike'];
 begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  if char_length(trim(p_team_1_name)) < 2 or char_length(trim(p_team_2_name)) < 2 then
+    raise exception 'Both team names are required';
+  end if;
+
+  if lower(trim(p_team_1_name)) = lower(trim(p_team_2_name)) then
+    raise exception 'Team names must be different';
+  end if;
+
+  if cardinality(p_selected_categories) <> 6 then
+    raise exception 'Exactly six categories are required';
+  end if;
+
+  if jsonb_array_length(p_questions) < 1 then
+    raise exception 'At least one question is required';
+  end if;
+
   insert into public.game_rooms (
-    game_name, status, active_screen, current_turn, selected_categories
+    judge_id, game_name, team_1_name, team_2_name, selected_categories,
+    team_1_tools, team_2_tools, status
   )
   values (
-    trim(p_game_name), 'waiting', 'waiting', 1, p_selected_categories
+    auth.uid(), nullif(trim(p_game_name), ''), trim(p_team_1_name), trim(p_team_2_name),
+    p_selected_categories, v_fixed_tools, v_fixed_tools, 'setup'
   )
   returning id into v_room_id;
 
-  insert into public.teams (room_id, team_index, team_name, score, balance, available_tools)
+  insert into public.teams (room_id, team_index, name, points, score, tools)
   values (v_room_id, 1, trim(p_team_1_name), 4000, 1000, v_fixed_tools)
   returning id into v_team_1_id;
 
-  insert into public.teams (room_id, team_index, team_name, score, balance, available_tools)
+  insert into public.teams (room_id, team_index, name, points, score, tools)
   values (v_room_id, 2, trim(p_team_2_name), 4000, 1000, v_fixed_tools)
   returning id into v_team_2_id;
 
@@ -107,7 +132,7 @@ begin
 end;
 $function$;
 
--- 5. Update restart_game_room function to copy show_question_first & image_duration
+-- 6. Canonical restart_game_room function
 CREATE OR REPLACE FUNCTION public.restart_game_room(
   p_source_room_id uuid,
   p_team_1_name text,
@@ -135,18 +160,20 @@ begin
   end if;
 
   insert into public.game_rooms (
-    game_name, status, active_screen, current_turn, selected_categories
+    judge_id, game_name, team_1_name, team_2_name, selected_categories,
+    team_1_tools, team_2_tools, status
   )
   values (
-    v_source.game_name, 'waiting', 'waiting', 1, v_source.selected_categories
+    v_source.judge_id, v_source.game_name, trim(p_team_1_name), trim(p_team_2_name),
+    v_source.selected_categories, v_fixed_tools, v_fixed_tools, 'setup'
   )
   returning id into v_room_id;
 
-  insert into public.teams (room_id, team_index, team_name, score, balance, available_tools)
+  insert into public.teams (room_id, team_index, name, points, score, tools)
   values (v_room_id, 1, trim(p_team_1_name), 4000, 1000, v_fixed_tools)
   returning id into v_team_1_id;
 
-  insert into public.teams (room_id, team_index, team_name, score, balance, available_tools)
+  insert into public.teams (room_id, team_index, name, points, score, tools)
   values (v_room_id, 2, trim(p_team_2_name), 4000, 1000, v_fixed_tools)
   returning id into v_team_2_id;
 
