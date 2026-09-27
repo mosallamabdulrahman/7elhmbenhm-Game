@@ -57,7 +57,7 @@ export function ActiveQuestionView({
   // show media first, hide question text, count down for image_duration seconds.
   // Once the duration is over, hide media, show question text, and resume normal question flow.
   const isMediaFirst = Boolean(
-    activeQuestion.show_question_first && activeQuestion.media_url
+    activeQuestion.show_question_first && activeQuestion.media_url,
   );
   const mediaDuration =
     Number(activeQuestion.image_duration) > 0
@@ -89,16 +89,6 @@ export function ActiveQuestionView({
     return () => clearInterval(interval);
   }, [activeQuestion.id, isMediaFirst, mediaDuration]);
 
-  // Pause the main question countdown while media is showing first, then resume/reset when question appears
-  useEffect(() => {
-    if (isMediaFirst && mediaPhaseActive) {
-      onPauseTimer?.();
-    } else if (isMediaFirst && !mediaPhaseActive) {
-      onResetTimer?.();
-      onResumeTimer?.();
-    }
-  }, [isMediaFirst, mediaPhaseActive]);
-
   const isWlaKelma =
     activeQuestion.category_name === "ولا كلمة" ||
     activeQuestion.category_name?.includes("ولا كلمة") ||
@@ -114,7 +104,7 @@ export function ActiveQuestionView({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -16 }}
           transition={{ duration: 0.25 }}
-          className="relative mx-auto rounded-[2rem] sm:rounded-[2.5rem] border-4 border-cyan-500 bg-white p-8 sm:p-10 md:px-12 text-center shadow-2xl"
+          className="relative mx-auto rounded-[2rem] sm:rounded-[2.5rem] border-4 border-[#16a34a] bg-white p-8 sm:p-10 md:px-12 text-center shadow-2xl"
         >
           {/* Top Center: TimerPill on top border */}
           <div className="absolute -top-6 sm:-top-7 left-1/2 -translate-x-1/2 z-20 shrink-0">
@@ -128,13 +118,13 @@ export function ActiveQuestionView({
           </div>
 
           {/* Top Right: Points badge */}
-          <span className="absolute -top-4 sm:-top-5 right-3 sm:right-6 md:right-8 z-20 rounded-xl bg-slate-950 px-3 py-1.5 sm:px-5 sm:py-2 text-xs sm:text-sm md:text-base font-bold text-white shadow-lg">
+          <span className="absolute -top-4 sm:-top-5 right-3 sm:right-6 md:right-8 z-20 rounded-xl bg-[#15803d] px-3 py-1.5 sm:px-5 sm:py-2 text-xs sm:text-sm md:text-base font-bold text-white shadow-lg">
             {activeQuestion.points ||
               (activeQuestion.difficulty === "easy"
                 ? 200
                 : activeQuestion.difficulty === "medium"
-                ? 400
-                : 600)}{" "}
+                  ? 400
+                  : 600)}{" "}
             نقطة
           </span>
 
@@ -143,27 +133,27 @@ export function ActiveQuestionView({
               <div className="w-full max-w-2xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-10 pb-4">
                 {/* Rules Pills Stack */}
                 <div className="flex-1 w-full flex flex-col gap-3.5 max-w-md">
-                  <div className="w-full rounded-full bg-white border-2 border-slate-200/90 py-2.5 sm:py-3 pr-11 sm:pr-14 pl-3 sm:pl-5 text-slate-800 font-bold text-xs sm:text-sm md:text-base shadow-sm relative flex items-center justify-center text-center">
+                  <div className="w-full rounded-full bg-white border-2 border-emerald-200/80 py-2.5 sm:py-3 pr-11 sm:pr-14 pl-3 sm:pl-5 text-slate-800 font-bold text-xs sm:text-sm md:text-base shadow-sm relative flex items-center justify-center text-center">
                     <span className="leading-snug">
                       اختر شخص غير مكرر لتمثيل فريقك
                     </span>
-                    <div className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#f25c05] text-white text-sm sm:text-base md:text-lg flex items-center justify-center shadow-sm shrink-0 font-bold">
+                    <div className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#16a34a] text-white text-sm sm:text-base md:text-lg flex items-center justify-center shadow-sm shrink-0 font-bold">
                       1
                     </div>
                   </div>
-                  <div className="w-full rounded-full bg-white border-2 border-slate-200/90 py-2.5 sm:py-3 pr-11 sm:pr-14 pl-3 sm:pl-5 text-slate-800 font-bold text-xs sm:text-sm md:text-base shadow-sm relative flex items-center justify-center text-center">
+                  <div className="w-full rounded-full bg-white border-2 border-emerald-200/80 py-2.5 sm:py-3 pr-11 sm:pr-14 pl-3 sm:pl-5 text-slate-800 font-bold text-xs sm:text-sm md:text-base shadow-sm relative flex items-center justify-center text-center">
                     <span className="leading-snug">
                       هذا الشخص الوحيد المسموح له تصوير الباركود
                     </span>
-                    <div className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#f25c05] text-white text-sm sm:text-base md:text-lg flex items-center justify-center shadow-sm shrink-0 font-bold">
+                    <div className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#16a34a] text-white text-sm sm:text-base md:text-lg flex items-center justify-center shadow-sm shrink-0 font-bold">
                       2
                     </div>
                   </div>
-                  <div className="w-full rounded-full bg-white border-2 border-slate-200/90 py-2.5 sm:py-3 pr-11 sm:pr-14 pl-3 sm:pl-5 text-slate-800 font-bold text-xs sm:text-sm md:text-base shadow-sm relative flex items-center justify-center text-center">
+                  <div className="w-full rounded-full bg-white border-2 border-emerald-200/80 py-2.5 sm:py-3 pr-11 sm:pr-14 pl-3 sm:pl-5 text-slate-800 font-bold text-xs sm:text-sm md:text-base shadow-sm relative flex items-center justify-center text-center">
                     <span className="leading-snug">
                       بعد تصوير الباركود ورؤية السؤال اضغط جاهز
                     </span>
-                    <div className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#f25c05] text-white text-sm sm:text-base md:text-lg flex items-center justify-center shadow-sm shrink-0 font-bold">
+                    <div className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#16a34a] text-white text-sm sm:text-base md:text-lg flex items-center justify-center shadow-sm shrink-0 font-bold">
                       3
                     </div>
                   </div>
@@ -171,7 +161,7 @@ export function ActiveQuestionView({
 
                 {/* QR Code Card */}
                 <div className="relative shrink-0 flex flex-col items-center">
-                  <div className="w-44 h-44 sm:w-52 sm:h-52 rounded-lg bg-white border-4 border-slate-200 shadow-2xl flex items-center justify-center p-4 mb-2">
+                  <div className="w-44 h-44 sm:w-52 sm:h-52 rounded-lg bg-white border-4 border-emerald-300 shadow-2xl flex items-center justify-center p-4 mb-2">
                     <QRCodeSVG
                       value={
                         typeof window !== "undefined"
@@ -183,7 +173,7 @@ export function ActiveQuestionView({
                       className="w-full h-full object-contain"
                     />
                   </div>
-                  <span className="absolute -bottom-3 bg-gradient-to-r from-orange-600 to-amber-500 text-white text-xs sm:text-sm px-8 py-1.5 rounded-full shadow-lg tracking-wide font-bold">
+                  <span className="absolute -bottom-3 bg-gradient-to-r from-emerald-600 to-green-500 text-white text-xs sm:text-sm px-8 py-1.5 rounded-full shadow-lg tracking-wide font-bold">
                     السؤال
                   </span>
                 </div>
@@ -222,7 +212,7 @@ export function ActiveQuestionView({
                 <button
                   type="button"
                   onClick={() => setMediaPhaseActive(false)}
-                  className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-cyan-700 font-bold hover:underline transition cursor-pointer pt-1"
+                  className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-emerald-700 font-bold hover:underline transition cursor-pointer pt-1"
                 >
                   <FastForward className="w-3.5 h-3.5" />
                   <span>تخطي عرض الميديا وإظهار السؤال فوراً</span>
@@ -259,7 +249,7 @@ export function ActiveQuestionView({
           )}
 
           {/* Bottom Right: Category badge */}
-          <span className="absolute -bottom-4 sm:-bottom-5 right-3 sm:right-6 md:right-8 z-20 rounded-xl bg-rose-500 px-3 py-1.5 sm:px-5 sm:py-2 text-xs sm:text-sm font-bold text-white shadow-lg">
+          <span className="absolute -bottom-4 sm:-bottom-5 right-3 sm:right-6 md:right-8 z-20 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 px-3 py-1.5 sm:px-5 sm:py-2 text-xs sm:text-sm font-bold text-white shadow-lg">
             {activeQuestion.category_name}
           </span>
 
@@ -267,7 +257,7 @@ export function ActiveQuestionView({
           <button
             type="button"
             onClick={onShowAnswer}
-            className="absolute -bottom-4 sm:-bottom-5 left-3 sm:left-6 md:left-8 z-20 rounded-xl bg-cyan-600 hover:bg-cyan-700 active:scale-95 px-4 py-2 sm:px-7 sm:py-2.5 text-xs sm:text-sm font-bold text-white shadow-lg transition cursor-pointer"
+            className="absolute -bottom-4 sm:-bottom-5 left-3 sm:left-6 md:left-8 z-20 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 active:scale-95 px-4 py-2 sm:px-7 sm:py-2.5 text-xs sm:text-sm font-bold text-white shadow-lg transition cursor-pointer"
           >
             إظهار الإجابة
           </button>
@@ -341,7 +331,7 @@ export function ActiveQuestionView({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -16 }}
           transition={{ duration: 0.25 }}
-          className="relative mx-auto rounded-[2rem] sm:rounded-[2.5rem] border-4 border-rose-500 bg-white pt-10 sm:pt-14 pb-14 sm:pb-16 px-6 sm:px-12 text-center shadow-2xl"
+          className="relative mx-auto rounded-[2rem] sm:rounded-[2.5rem] border-4 border-[#0F74C5] text-white bg-white pt-10 sm:pt-14 pb-14 sm:pb-16 px-6 sm:px-12 text-center shadow-2xl"
         >
           <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-950 mb-8 sm:mb-10">
             أي فريق جاوب صح ؟
@@ -355,7 +345,7 @@ export function ActiveQuestionView({
                   type="button"
                   disabled={isBusy}
                   onClick={() => onPickWinner(team.team_index)}
-                  className="rounded-full py-4 sm:py-5 px-4 text-sm sm:text-lg font-bold text-white shadow-lg hover:shadow-xl transition active:scale-95 disabled:opacity-60 bg-red-800 hover:bg-red-900 cursor-pointer"
+                  className="rounded-full py-4 sm:py-5 px-4 text-sm sm:text-lg font-bold text-white shadow-lg hover:shadow-xl transition active:scale-95 disabled:opacity-60 bg-gradient-to-r from-[#0F74C5] to-[#1F9FF6] text-white cursor-pointer"
                 >
                   {team.name}
                 </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { FinishedCelebration, ImageModal, QuestionGrid } from "./CombatShared";
 import { RadarScanModal } from "./modals/RadarScanModal";
@@ -113,14 +113,15 @@ export function RefereeGameScreen({
   const team1 = teams.find((t) => t.team_index === 1);
   const team2 = teams.find((t) => t.team_index === 2);
   const currentTeam = teams.find((t) => t.team_index === room.current_turn);
-
-  if (room.active_question_id !== lastQuestionId) {
-    setLastQuestionId(room.active_question_id);
-    setShowAnswer(false);
-    setTeamSelectOpen(false);
-    setForceGridView(false);
-    setMediaRevealed(false);
-  }
+  useEffect(() => {
+    if (room?.active_question_id !== lastQuestionId) {
+      setLastQuestionId(room?.active_question_id);
+      setShowAnswer(false);
+      setTeamSelectOpen(false);
+      setForceGridView(false);
+      setMediaRevealed(false);
+    }
+  }, [room?.active_question_id, lastQuestionId, setShowAnswer, setTeamSelectOpen, setForceGridView]);
 
   const teamsWithStrikes =
     room.status === "playing"
@@ -129,15 +130,18 @@ export function RefereeGameScreen({
   const strikeModalTeamStillPending = teamsWithStrikes.some(
     (t) => t.team_index === strikeModalTeam,
   );
-  if (teamsWithStrikes.length > 0 && !strikeModalTeamStillPending) {
-    if (strikeModalTeam !== teamsWithStrikes[0].team_index) {
+
+  useEffect(() => {
+    if (teamsWithStrikes.length > 0 && !strikeModalTeamStillPending) {
+      if (strikeModalTeam !== teamsWithStrikes[0].team_index) {
+        setLocallyPendingStrikes(new Set());
+        setStrikeModalTeam(teamsWithStrikes[0].team_index);
+      }
+    } else if (teamsWithStrikes.length === 0 && strikeModalTeam !== null) {
       setLocallyPendingStrikes(new Set());
-      setStrikeModalTeam(teamsWithStrikes[0].team_index);
+      setStrikeModalTeam(null);
     }
-  } else if (teamsWithStrikes.length === 0 && strikeModalTeam !== null) {
-    setLocallyPendingStrikes(new Set());
-    setStrikeModalTeam(null);
-  }
+  }, [teamsWithStrikes, strikeModalTeamStillPending, strikeModalTeam]);
 
   const step = teamSelectOpen
     ? "select-winner"

@@ -644,7 +644,7 @@ export default function GameSetupSection() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 50 }}
               transition={{ duration: 0.25 }}
-              className="fixed right-3 lg:right-4 top-1/2 -translate-y-1/2 z-40 hidden md:flex flex-col items-center select-none"
+              className="fixed right-3 lg:right-4 top-1/2 -translate-y-1/2 z-40 hidden md:flex flex-col items-center gap-3 select-none"
             >
               <div className="bg-[#f8fafc]/95 backdrop-blur-md border border-slate-300/80 shadow-2xl rounded-[28px] p-2 flex flex-col items-center gap-2">
                 {/* 6 category slots */}
@@ -657,23 +657,18 @@ export default function GameSetupSection() {
                     return (
                       <div
                         key={cat.id}
-                        className="relative w-13 h-14 rounded-lg border border-slate-200 bg-white overflow-hidden shadow-xs flex flex-col items-center justify-between text-center group transition-all hover:scale-105"
+                        onClick={() => toggleCategory(cat.id)}
+                        className="relative w-13 h-16 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs flex flex-col items-center justify-between text-center group cursor-pointer transition-all hover:scale-105 active:scale-95"
+                        title="انقر لإزالة التصنيف"
                       >
-                        {/* Remove 'x' button */}
-                        <button
-                          type="button"
-                          onClick={() => toggleCategory(cat.id)}
-                          className="absolute -top-1 -left-1 z-10 w-4 h-4 rounded-full bg-slate-700/90 hover:bg-rose-600 text-white flex items-center justify-center text-[9px] font-bold shadow-xs transition cursor-pointer"
-                          title="إلغاء التحديد"
-                        >
-                          ×
-                        </button>
-                        <img
-                          src={cat.image_url || "/images/logo.png"}
-                          alt={cat.name}
-                          className="w-full h-10 object-cover"
-                        />
-                        <div className="w-full bg-[#f97316] py-0.5 px-0.5 text-center">
+                        <div className="w-full flex-1 flex items-center justify-center overflow-hidden">
+                          <img
+                            src={cat.image_url || "/images/logo.png"}
+                            alt={cat.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="w-full bg-[#f97316] py-0.5 px-0.5 text-center shrink-0">
                           <span className="text-[9px] font-bold text-white truncate block leading-tight">
                             {cat.name}
                           </span>
@@ -690,17 +685,17 @@ export default function GameSetupSection() {
                     </div>
                   );
                 })}
-
-                {/* Down Arrow Button: Scrolls smoothly to room data inputs */}
-                <button
-                  type="button"
-                  onClick={scrollToNamingTeams}
-                  className="w-10 h-10 rounded-full bg-gradient-to-b from-[#f97316] to-[#ea580c] hover:from-[#fb923c] hover:to-[#ea580c] text-white shadow-lg shadow-orange-500/30 flex items-center justify-center cursor-pointer transition-all hover:scale-110 active:scale-95 border-2 border-white mt-1"
-                  title="الانتقال لملء بيانات الغرفة"
-                >
-                  <ArrowDown className="w-5 h-5 stroke-[2.5]" />
-                </button>
               </div>
+
+              {/* Down Arrow Button: Outside the white container */}
+              <button
+                type="button"
+                onClick={scrollToNamingTeams}
+                className="w-10 h-10 rounded-full bg-gradient-to-b from-[#f97316] to-[#ea580c] hover:from-[#fb923c] hover:to-[#ea580c] text-white shadow-lg shadow-orange-500/30 flex items-center justify-center cursor-pointer transition-all hover:scale-110 active:scale-95 border-2 border-white"
+                title="الانتقال لملء بيانات الغرفة"
+              >
+                <ArrowDown className="w-5 h-5 stroke-[2.5]" />
+              </button>
             </motion.div>
 
             {/* Mobile Dock: Horizontal floating dock at bottom screen (< md) */}
@@ -732,21 +727,18 @@ export default function GameSetupSection() {
                     return (
                       <div
                         key={cat.id}
-                        className="relative w-11 h-14 rounded-lg border border-slate-200 bg-white overflow-hidden shadow-xs flex flex-col items-center justify-between text-center shrink-0"
+                        onClick={() => toggleCategory(cat.id)}
+                        className="relative w-11 h-14 rounded-lg border border-slate-200 bg-white overflow-hidden shadow-xs flex flex-col items-center justify-between text-center shrink-0 cursor-pointer active:scale-95"
+                        title="انقر لإزالة التصنيف"
                       >
-                        <button
-                          type="button"
-                          onClick={() => toggleCategory(cat.id)}
-                          className="absolute -top-1 -left-1 z-10 w-3.5 h-3.5 rounded-full bg-slate-700/90 hover:bg-rose-600 text-white flex items-center justify-center text-[8px] font-bold shadow-xs cursor-pointer"
-                        >
-                          ×
-                        </button>
-                        <img
-                          src={cat.image_url || "/images/logo.png"}
-                          alt={cat.name}
-                          className="w-full h-9 object-cover"
-                        />
-                        <div className="w-full bg-[#f97316] py-0.5 px-0.5 text-center">
+                        <div className="w-full flex-1 flex items-center justify-center overflow-hidden">
+                          <img
+                            src={cat.image_url || "/images/logo.png"}
+                            alt={cat.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="w-full bg-[#f97316] py-0.5 px-0.5 text-center shrink-0">
                           <span className="text-[8px] font-bold text-white truncate block leading-tight">
                             {cat.name}
                           </span>

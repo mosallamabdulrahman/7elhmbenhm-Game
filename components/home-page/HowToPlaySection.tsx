@@ -28,27 +28,24 @@ export default function HowToPlaySection() {
     {
       number: "2",
       badgeColor: "bg-[#1F9FF6]",
-      type: "icon",
-      icon: Lightbulb,
-      iconColor: "text-[#1F9FF6]",
+      type: "image",
+      src: "/images/lamb.png",
       title: "جاوب",
       desc: "أجب عن الأسئلة\nلتحصل على الطلقات",
     },
     {
       number: "3",
       badgeColor: "bg-[#9333ea]",
-      type: "icon",
-      icon: Target,
-      iconColor: "text-[#9333ea]",
+      type: "image",
+      src: "/images/shot.png",
       title: "اهجم",
       desc: "اختر موقعاً على\nخريطة الخصم",
     },
     {
       number: "4",
       badgeColor: "bg-[#f59e0b]",
-      type: "icon",
-      icon: Trophy,
-      iconColor: "text-[#f59e0b]",
+      type: "image",
+      src: "/images/cup.png",
       title: "دمر واربح",
       desc: "أعلى نقاط عند نهاية\nالمعركة تفوز",
     },
@@ -93,12 +90,12 @@ export default function HowToPlaySection() {
                   </div>
 
                   {/* Graphic / Icon */}
-                  <div className="h-10 sm:h-12 flex items-center justify-center my-1">
+                  <div className="flex items-center justify-center my-1">
                     {item.type === "image" && item.src ? (
                       <img
                         src={item.src}
                         alt={item.title}
-                        className="h-9 sm:h-11 w-auto object-contain drop-shadow-xs transition-transform duration-200 hover:scale-105"
+                        className="h-16 sm:h-20 w-auto object-contain drop-shadow-xs transition-transform duration-200 hover:scale-105"
                       />
                     ) : (
                       Icon && (

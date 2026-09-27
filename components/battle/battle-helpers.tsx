@@ -32,9 +32,9 @@ export function getCombatCellVisual({
   if (result === "pending") {
     return {
       className:
-        "border-2 border-amber-400 bg-amber-500/20 text-amber-300 animate-pulse pointer-events-none",
+        "border-2 border-amber-400 bg-amber-500/30 text-amber-300 animate-pulse pointer-events-none backdrop-blur-xs",
       content: (
-        <span className="leading-none flex items-center justify-center font-bold text-sm text-amber-400">
+        <span className="leading-none flex items-center justify-center font-bold text-sm text-amber-300 drop-shadow">
           ⏳
         </span>
       ),
@@ -42,7 +42,8 @@ export function getCombatCellVisual({
   }
   if (result === "hit") {
     return {
-      className: "border-2 border-rose-500 bg-rose-100 text-rose-950 shadow-sm",
+      className:
+        "border-2 border-rose-500 bg-rose-950/60 text-white shadow-md backdrop-blur-xs",
       content: (
         <>
           <span className="leading-none flex items-center justify-center p-0.5">
@@ -52,14 +53,14 @@ export function getCombatCellVisual({
                 height={36}
                 src={UNIT_IMAGES[unit]}
                 alt={UNIT_NAMES[unit] || unit}
-                className="w-9 h-9 sm:w-11 sm:h-11 object-contain drop-shadow-sm"
+                className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
               />
             ) : (
               "❓"
             )}
           </span>
           <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <X className="w-5 h-5 sm:w-6 sm:h-6 stroke-[3.5] text-rose-600 drop-shadow-sm" />
+            <X className="w-6 h-6 sm:w-7 sm:h-7 stroke-[4] text-rose-500 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]" />
           </span>
         </>
       ),
@@ -67,14 +68,19 @@ export function getCombatCellVisual({
   }
   if (result === "miss") {
     return {
-      className: "border-slate-400 bg-slate-300 text-slate-700",
-      content: "○",
+      className:
+        "border-slate-400/80 bg-slate-950/60 text-white font-bold backdrop-blur-xs",
+      content: (
+        <span className="text-sm font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+          ○
+        </span>
+      ),
     };
   }
   if (result === "mine") {
     return {
       className:
-        "border-2 border-amber-500 bg-amber-100 text-slate-950 shadow-sm",
+        "border-2 border-amber-500 bg-amber-950/70 text-white shadow-md backdrop-blur-xs",
       content: (
         <>
           <span className="leading-none flex items-center justify-center p-0.5">
@@ -83,11 +89,11 @@ export function getCombatCellVisual({
               height={36}
               src={UNIT_IMAGES.mine}
               alt={UNIT_NAMES.mine || "لغم"}
-              className="w-7 h-7 sm:w-8 sm:h-8 object-contain drop-shadow-sm"
+              className="w-7 h-7 sm:w-8 sm:h-8 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
             />
           </span>
           <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <X className="w-5 h-5 sm:w-6 sm:h-6 stroke-[3.5] text-rose-600 drop-shadow-sm" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6 stroke-[3.5] text-rose-500 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]" />
           </span>
         </>
       ),
@@ -95,10 +101,11 @@ export function getCombatCellVisual({
   }
   if (result === "blocked") {
     return {
-      className: "border-2 border-cyan-500 bg-cyan-100 text-cyan-900",
+      className:
+        "border-2 border-cyan-500 bg-cyan-950/70 text-cyan-200 backdrop-blur-xs",
       content: (
         <span className="leading-none flex items-center justify-center">
-          <Shield className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.5] text-cyan-600" />
+          <Shield className="w-6 h-6 sm:w-7 sm:h-7 stroke-[2.5] text-cyan-400 drop-shadow" />
         </span>
       ),
     };
@@ -107,7 +114,7 @@ export function getCombatCellVisual({
     return unit
       ? {
           className:
-            "border-2 border-amber-400 bg-amber-100 text-amber-900 shadow-sm",
+            "border-2 border-amber-400 bg-amber-950/65 text-amber-300 shadow-md backdrop-blur-xs",
           content: (
             <span className="leading-none flex items-center justify-center p-0.5">
               {UNIT_IMAGES[unit] ? (
@@ -116,7 +123,7 @@ export function getCombatCellVisual({
                   height={36}
                   src={UNIT_IMAGES[unit]}
                   alt={UNIT_NAMES[unit] || unit}
-                  className="w-7 h-7 sm:w-8 sm:h-8 object-contain drop-shadow-sm"
+                  className="w-7 h-7 sm:w-8 sm:h-8 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
                 />
               ) : (
                 "●"
@@ -125,18 +132,22 @@ export function getCombatCellVisual({
           ),
         }
       : {
-          className: "border-emerald-300 bg-emerald-50 text-emerald-700",
-          content: "○",
+          className:
+            "border-emerald-400/80 bg-emerald-950/60 text-emerald-300 font-bold backdrop-blur-xs",
+          content: (
+            <span className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">○</span>
+          ),
         };
   }
   return canClick
     ? {
         className:
-          "border-slate-600 bg-slate-800 text-slate-200 hover:bg-rose-800 hover:border-rose-500",
+          "border-white/30 bg-black/25 hover:bg-rose-600/40 hover:border-rose-400 text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] cursor-pointer backdrop-blur-[0.5px]",
         content: null,
       }
     : {
-        className: "border-slate-200 bg-slate-100 text-slate-400",
+        className:
+          "border-white/10 bg-black/40 text-white/40 cursor-not-allowed",
         content: null,
       };
 }

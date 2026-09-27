@@ -28,11 +28,16 @@ export function TeamPillBar({
   onOpenStrike,
 }: TeamPillBarProps) {
   const hasStrikes = team.available_strikes > 0;
+  const isTeam1 = team.team_index === 1;
+
+  // Calm Brand Colors from Logo Color Palette (Primary Blue for Team 1, Dark Slate/Olive for Team 2)
 
   return (
     <div className="flex flex-col items-center gap-1 w-full">
-      {/* Top Red Team Pill Badge */}
-      <div className="w-full bg-[#a30000] text-white font-bold text-xs sm:text-base text-center py-1 sm:py-2.5 px-2.5 sm:px-8 rounded-full shadow-sm flex items-center justify-center gap-1.5">
+      {/* Top Team Pill Badge */}
+      <div
+        className={`w-full bg-gradient-to-r from-[#0F74C5] to-[#1F9FF6] text-white text-white font-bold text-xs sm:text-base text-center py-1 sm:py-2 px-2 sm:px-6 rounded-full shadow-sm flex items-center justify-center gap-1.5`}
+      >
         <span className="truncate max-w-[100px] sm:max-w-[120px]">
           {team.name ||
             (team.team_index === 1 ? "الفريق الأول" : "الفريق الثاني")}
@@ -50,23 +55,27 @@ export function TeamPillBar({
       </div>
 
       {/* Bottom Score Stepper Container */}
-      <div className="flex items-center justify-between gap-1 sm:gap-2 bg-white border-2 border-[#a30000] rounded-full p-0.5 sm:p-1 shadow-sm w-full">
+      <div
+        className={`flex items-center justify-between gap-1 sm:gap-2 bg-white border-2 border-[#0F74C5] rounded-full p-0.5 sm:p-1 shadow-sm w-full`}
+      >
         <button
           type="button"
           disabled={isBusy}
           onClick={() => onGrantPoints(team.team_index, -50)}
-          className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#a30000] hover:bg-[#800000] text-white font-bold text-xs sm:text-sm flex items-center justify-center transition disabled:opacity-40 shrink-0 cursor-pointer"
+          className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#0F74C5] hover:bg-[#085BA0] text-white font-bold text-xs sm:text-sm flex items-center justify-center transition disabled:opacity-40 shrink-0 cursor-pointer`}
         >
           −
         </button>
-        <span className="font-bold text-sm sm:text-lg text-[#a30000] tabular-nums px-1 sm:px-2">
+        <span
+          className={`font-bold text-sm sm:text-lg text-[#0F74C5] tabular-nums px-1 sm:px-2`}
+        >
           {team.score}
         </span>
         <button
           type="button"
           disabled={isBusy}
           onClick={() => onGrantPoints(team.team_index, 50)}
-          className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#a30000] hover:bg-[#800000] text-white font-bold text-xs sm:text-sm flex items-center justify-center transition disabled:opacity-40 shrink-0 cursor-pointer"
+          className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#0F74C5] hover:bg-[#085BA0] text-white font-bold text-xs sm:text-sm flex items-center justify-center transition disabled:opacity-40 shrink-0 cursor-pointer`}
         >
           +
         </button>
@@ -245,14 +254,14 @@ export function TeamToolsCard({
 
   return (
     <div className="flex flex-col items-center gap-2 py-4 px-3 bg-white rounded-3xl border border-slate-200 shadow-sm w-full text h-fit-center">
-      {/* Team Red Pill Badge */}
-      <div className="w-full bg-[#a30000] text-white font-bold text-sm sm:text-base py-1.5 px-4 rounded-full shadow-sm text-center truncate">
+      {/* Team Green Pill Badge (matching logo colors) */}
+      <div className="w-full bg-gradient-to-r from-emerald-600 to-green-600 text-white font-bold text-sm sm:text-base py-1.5 px-4 rounded-full shadow-sm text-center truncate">
         {team.name ||
           (team.team_index === 1 ? "الفريق الأول" : "الفريق الثاني")}
       </div>
 
       {/* Current Score */}
-      <span className="font-bold text-2xl text-[#a30000] tabular-nums">
+      <span className="font-bold text-2xl text-[#15803d] tabular-nums">
         {team.score}
       </span>
 

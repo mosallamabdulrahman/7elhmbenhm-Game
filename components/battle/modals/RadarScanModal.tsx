@@ -2,8 +2,7 @@
 
 import React from "react";
 import { BoardModal } from "./BoardModal";
-import { getCombatCellVisual } from "../battle-helpers";
-import { UNIT_NAMES } from "@/lib/game-data";
+import { UnifiedBattleBoard } from "../UnifiedBattleBoard";
 
 interface RadarScanModalProps {
   radarModalTeam: any;
@@ -36,44 +35,24 @@ export function RadarScanModal({
       }
       onClose={onClose}
     >
-      <div className="grid grid-cols-6 gap-1.5">
-        {Array.from({ length: 36 }, (_, cellIndex) => {
-          const revealed = !radarHasResult
-            ? false
-            : radarRevealMap.has(cellIndex);
-          const unit = radarRevealMap.get(cellIndex) ?? undefined;
-          const canClick = !isBusy && !radarHasResult;
-          const visual = getCombatCellVisual({
-            result: undefined,
-            unit,
-            revealed,
-            canClick,
-          });
-          return (
-            <button
-              key={cellIndex}
-              type="button"
-              disabled={!canClick}
-              onClick={() => onUseTool(radarModalTeam, "radar_scan", cellIndex)}
-              title={
-                revealed
-                  ? unit
-                    ? UNIT_NAMES[unit] || unit
-                    : "فاضي"
-                  : undefined
-              }
-              className={`relative aspect-square rounded-lg border text-[10px] font-bold transition-all ${visual.className}`}
-            >
-              {visual.content ?? cellIndex + 1}
-            </button>
-          );
-        })}
-      </div>
+      <UnifiedBattleBoard
+        mode="radar"
+        title={`رادار ${radarAttacker?.name || ""}`}
+        subtitle={radarHasResult ? "المربعات المكشوفة" : "اختر مربعاً للمسح"}
+        radarRevealMap={radarRevealMap}
+        isCurrentStepDone={radarHasResult}
+        isScanning={isBusy}
+        onRadarCellClick={(cellIndex) =>
+          !radarHasResult && !isBusy && onUseTool(radarModalTeam, "radar_scan", cellIndex)
+        }
+        className="w-full"
+      />
+
       {radarHasResult && (
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 w-full rounded-2xl bg-slate-950 py-3 text-sm font-bold text-white hover:bg-slate-800 transition cursor-pointer"
+          className="mt-4 w-full rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 py-3 text-sm font-bold text-white hover:from-emerald-700 hover:to-green-700 transition cursor-pointer shadow-lg"
         >
           إغلاق
         </button>

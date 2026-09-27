@@ -34,6 +34,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { UNIT_IMAGES, UNIT_NAMES } from "@/lib/game-data";
 import GameLogo from "@/components/common/GameLogo";
 import Image from "next/image";
+import { UnifiedBattleBoard } from "@/components/battle/UnifiedBattleBoard";
 import type { CombatEvent, Question, GameRoom, Team } from "@/types/game";
 
 const TEAM_PUBLIC_COLUMNS = [
@@ -184,7 +185,7 @@ function BattlePageInner() {
     },
   };
 
-  // Limits per type — totals to exactly 33 (board must have 33 occupied, 3 empty)
+  // Limits per type — totals to 33 (covers 33 squares on the 6x6 board, 4000 pts total)
   const unitLimits: Record<string, number> = {
     infantry: 15,
     armored: 7,
@@ -481,9 +482,7 @@ function BattlePageInner() {
       // Enrich with question_bank details to guarantee show_question_first and image_duration
       const bankIds = [
         ...new Set(
-          (questionData || [])
-            .map((q) => q.question_bank_id)
-            .filter(Boolean),
+          (questionData || []).map((q) => q.question_bank_id).filter(Boolean),
         ),
       ];
       let bankQuestionMap = new Map();
@@ -587,7 +586,9 @@ function BattlePageInner() {
               const current = updated[targetIdx] || [];
               const merged = [...current];
               ev.metadata.cells.forEach((cell: any) => {
-                if (!merged.some((c: any) => c.cell_index === cell.cell_index)) {
+                if (
+                  !merged.some((c: any) => c.cell_index === cell.cell_index)
+                ) {
                   merged.push(cell);
                 }
               });
@@ -877,7 +878,7 @@ function BattlePageInner() {
       ...Array(2).fill("mine"),
     ];
 
-    // Fisher-Yates shuffle on 36 positions, pick first 33
+    // Fisher-Yates shuffle on 36 positions, pick 33
     const positions = Array.from({ length: 36 }, (_, i) => i);
     for (let i = positions.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -940,9 +941,9 @@ function BattlePageInner() {
         : [];
     const placedCount = (currentBoard || []).filter(Boolean).length;
 
-    if (placedCount !== 33) {
+    if (placedCount < 33 || placedCount > 36) {
       showAlert(
-        `لازم توزع 33 جندي بالضبط قبل لا تقفل (الحين حاط: ${placedCount}/33).`,
+        `لازم توزع كل الجنود على الخريطة (الحين حاط: ${placedCount}/33).`,
         "error",
       );
       return;
@@ -1220,7 +1221,9 @@ function BattlePageInner() {
         if (serverEvent && serverEvent.id) {
           if (serverEvent.metadata?.pit_stolen_points > 0) {
             const stolen = serverEvent.metadata.pit_stolen_points;
-            const attacker = teams.find((t) => t.team_index === attackerTeamIndex);
+            const attacker = teams.find(
+              (t) => t.team_index === attackerTeamIndex,
+            );
             showAlert(
               `🔥 حفرة ناجحة! تم خصم ${stolen} نقطة من الخصم وإضافتها لرصيد ${attacker?.name || "فريقك"}!`,
               "success",
@@ -1290,7 +1293,9 @@ function BattlePageInner() {
     runAction(async () => {
       // Shield, Pit, and Extra Strike must be activated BEFORE question reveal
       if (
-        (toolId === "shield" || toolId === "extra_strike" || toolId === "pit") &&
+        (toolId === "shield" ||
+          toolId === "extra_strike" ||
+          toolId === "pit") &&
         room?.active_question_id
       ) {
         throw new Error("لازم تشغل هالفزعة قبل لا تبطل السؤال.");
@@ -1561,6 +1566,8 @@ function BattlePageInner() {
       <>
         <BattleAlert alert={alertMsg} />
         <PreGameRadarScreen
+          room={room}
+          teams={teams}
           onExecuteRadar={handleExecutePreGameRadar}
           onComplete={() => {
             setPreGameRadarDismissed(true);
@@ -1744,9 +1751,7 @@ function BattlePageInner() {
               >
                 ارجع للرئيسية
               </Link>
-              <span
-                className="px-3.5 py-1.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200 shadow-xs"
-              >
+              <span className="px-3.5 py-1.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200 shadow-xs">
                 ● ناطرين تجهيز الجيوش
               </span>
             </div>
@@ -1760,7 +1765,7 @@ function BattlePageInner() {
               {/* Team 1 Status panel */}
               <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-md flex flex-col relative overflow-hidden transition-all hover:shadow-lg">
                 <div className="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-cyan-400 to-blue-500" />
-                
+
                 <div className="flex items-center justify-between gap-3 mt-1 pb-3 border-b border-slate-100">
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full bg-cyan-500 shadow-xs" />
@@ -1804,8 +1809,13 @@ function BattlePageInner() {
                         <button
                           type="button"
                           onClick={() => {
-                            navigator.clipboard.writeText(getTeamUrl(room.id, 1));
-                            showAlert("نسخنا رابط الفريق الأول بنجاح!", "success");
+                            navigator.clipboard.writeText(
+                              getTeamUrl(room.id, 1),
+                            );
+                            showAlert(
+                              "نسخنا رابط الفريق الأول بنجاح!",
+                              "success",
+                            );
                           }}
                           className="text-[11px] font-bold text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs shrink-0"
                         >
@@ -1829,7 +1839,7 @@ function BattlePageInner() {
               {/* Team 2 Status panel */}
               <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-md flex flex-col relative overflow-hidden transition-all hover:shadow-lg">
                 <div className="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-orange-400 to-amber-500" />
-                
+
                 <div className="flex items-center justify-between gap-3 mt-1 pb-3 border-b border-slate-100">
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full bg-orange-500 shadow-xs" />
@@ -1873,8 +1883,13 @@ function BattlePageInner() {
                         <button
                           type="button"
                           onClick={() => {
-                            navigator.clipboard.writeText(getTeamUrl(room.id, 2));
-                            showAlert("نسخنا رابط الفريق الثاني بنجاح!", "success");
+                            navigator.clipboard.writeText(
+                              getTeamUrl(room.id, 2),
+                            );
+                            showAlert(
+                              "نسخنا رابط الفريق الثاني بنجاح!",
+                              "success",
+                            );
                           }}
                           className="text-[11px] font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs shrink-0"
                         >
@@ -1912,7 +1927,8 @@ function BattlePageInner() {
                       الفريقان جاهزان لبدء المعركة! ⚔️
                     </h3>
                     <p className="text-xs text-cyan-100">
-                      اضغط للبدء بمرحلة استطلاع الرادار لكل فريق قبل دخول غرفة الأسئلة.
+                      اضغط للبدء بمرحلة استطلاع الرادار لكل فريق قبل دخول غرفة
+                      الأسئلة.
                     </p>
                   </div>
                 </div>
@@ -2136,8 +2152,8 @@ function BattlePageInner() {
         <main className="max-w-[85rem] mx-auto px-4 mt-8 flex-grow grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
           {/* 6x6 Army Board Panel (Task 11) */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-md relative overflow-visible">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-6">
+            <div className="bg-white  rounded-3xl border border-slate-200 shadow-md relative overflow-visible">
+              <div className="flex p-6 md:p-8 items-center justify-between border-b border-slate-100 pb-3 mb-6">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">
                     خريطتك وتوزيعك (6×6 مربعات)
@@ -2171,68 +2187,23 @@ function BattlePageInner() {
                 </div>
               </div>
 
-              {/* The Interactive Grid */}
-              <div className="relative">
-                <div className="grid grid-cols-6 gap-2 sm:gap-3 aspect-square max-w-lg mx-auto">
-                  {(Array.isArray(activeTeam.board)
-                    ? activeTeam.board
-                    : Array(36).fill(null)
-                  ).map((cell: any, idx: number) => {
-                    const cellUnit = cell ? unitSpecs[cell] : null;
-                    return (
-                      <motion.button
-                        key={idx}
-                        whileHover={!activeTeam.is_ready ? { scale: 1.05 } : {}}
-                        whileTap={!activeTeam.is_ready ? { scale: 0.95 } : {}}
-                        disabled={activeTeam.is_ready}
-                        onClick={() => handleCellClick(idx)}
-                        className={`aspect-square border rounded-xl flex items-center justify-center text-xl sm:text-2xl transition-all cursor-pointer relative group ${
-                          cell
-                            ? "bg-gradient-to-tr from-cyan-50 to-cyan-100 border-cyan-400 text-slate-900 shadow-cyan-100/50 shadow-sm"
-                            : "bg-slate-50 hover:bg-slate-100/70 border-slate-150"
-                        }`}
-                      >
-                        {/* Unit Image display */}
-                        {cellUnit ? (
-                          <motion.span
-                            key={`${idx}-${cell}`}
-                            initial={
-                              lastPlacedCell === idx
-                                ? { scale: 0.35, rotate: -12, opacity: 0 }
-                                : false
-                            }
-                            animate={
-                              lastPlacedCell === idx
-                                ? {
-                                    scale: [1, 1.18, 1],
-                                    rotate: 0,
-                                    opacity: 1,
-                                  }
-                                : { scale: 1, rotate: 0, opacity: 1 }
-                            }
-                            transition={{ duration: 0.45, ease: "easeOut" }}
-                            className="flex flex-col items-center justify-center relative w-full h-full p-1"
-                          >
-                            <Image
-                              src={UNIT_IMAGES[cell] || cellUnit.image}
-                              alt={cellUnit.name}
-                              width={28}
-                              height={28}
-                              className="w-7 h-7 sm:w-11 sm:h-11 object-contain drop-shadow-sm"
-                            />
-                            <span className="text-[8px] absolute bottom-0.5 text-cyan-700 font-bold tracking-tight scale-90">
-                              {cellUnit.cost}ن
-                            </span>
-                          </motion.span>
-                        ) : (
-                          <span className="text-slate-300 group-hover:text-cyan-600 text-xs font-bold transition-colors">
-                            {idx + 1}
-                          </span>
-                        )}
-                      </motion.button>
-                    );
-                  })}
-                </div>
+              {/* The Interactive Grid with UnifiedBattleBoard */}
+              <div className="relative w-full">
+                <UnifiedBattleBoard
+                  mode="deploy"
+                  title={`خريطة ${activeTeam.name}`}
+                  subtitle="طق على المربع عشان تحط جندي أو تشيله"
+                  board={
+                    Array.isArray(activeTeam.board)
+                      ? activeTeam.board
+                      : Array(36).fill(null)
+                  }
+                  unitSpecs={unitSpecs}
+                  lastPlacedCell={lastPlacedCell}
+                  isReady={activeTeam.is_ready}
+                  onDeployCellClick={handleCellClick}
+                  className="w-full"
+                />
               </div>
             </div>
           </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ChevronDown, Video, Music, Timer } from "lucide-react";
+import { ChevronDown, Video, Music, Timer, Eye } from "lucide-react";
 import { DIFFICULTY_AR } from "@/lib/admin-constants";
 
 interface QuestionTableRowProps {
@@ -12,6 +12,7 @@ interface QuestionTableRowProps {
   onToggleSelect: () => void;
   setQModal: (q: any) => void;
   deleteQuestion: (id: string) => void;
+  onPreviewQuestion: (q: any) => void;
   busy: boolean;
   difficultyEditFor: string | null;
   setDifficultyEditFor: (val: React.SetStateAction<string | null>) => void;
@@ -29,6 +30,7 @@ export function QuestionTableRow({
   onToggleSelect,
   setQModal,
   deleteQuestion,
+  onPreviewQuestion,
   busy,
   difficultyEditFor,
   setDifficultyEditFor,
@@ -85,6 +87,16 @@ export function QuestionTableRow({
         )}
         {/* Inline Hover Actions */}
         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 text-[11px] font-semibold mt-1">
+          <button
+            type="button"
+            onClick={() => onPreviewQuestion(q)}
+            className="text-emerald-700 hover:text-emerald-900 cursor-pointer flex items-center gap-1 font-bold"
+            title="معاينة السؤال كما يظهر داخل الغرفة"
+          >
+            <Eye className="w-3 h-3" />
+            <span>معاينة السؤال</span>
+          </button>
+          <span className="text-slate-300">|</span>
           <button
             type="button"
             onClick={() => setQModal(q)}

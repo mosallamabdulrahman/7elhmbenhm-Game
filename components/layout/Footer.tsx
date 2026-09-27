@@ -131,12 +131,12 @@ export default function Footer() {
           <p className="font-medium text-slate-300">
             تم التطوير من قبل{" "}
             <a
-              href="https://mosallamabdulrahman.github.io/My-Portfolio/"
+              href="https://mosalam.com/"
               target="_blank"
               rel="noopener noreferrer"
               className="text-cyan-400 hover:text-cyan-300 font-bold underline underline-offset-4 decoration-cyan-400/50 hover:decoration-cyan-300 transition-all"
             >
-              عبدالرحمن
+              شركة مسلم
             </a>
           </p>
           <p>© ٢٠٢٦ حيلهم بينهم. جميع الحقوق محفوظة.</p>

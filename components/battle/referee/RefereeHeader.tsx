@@ -85,7 +85,7 @@ export function RefereeHeader({
           onClick={() =>
             onSetCurrentTurn(currentTeam?.team_index === 1 ? 2 : 1)
           }
-          className="rounded-full bg-[#a30000] border border-white/20 px-4 py-1 text-xs font-bold text-white shadow-inner flex items-center gap-1.5 hover:bg-[#800000] transition disabled:opacity-60 cursor-pointer"
+          className="rounded-full bg-cyan-950/70 border border-white/20 px-4 py-1 text-xs font-bold text-white shadow-inner flex items-center gap-1.5 hover:bg-cyan-950/90 transition disabled:opacity-60 cursor-pointer"
         >
           <span className="whitespace-nowrap">دور فريق :</span>
           <span className="text-white font-bold truncate max-w-[140px]">

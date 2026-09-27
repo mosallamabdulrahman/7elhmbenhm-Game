@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
-import { motion } from "motion/react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { Search } from "lucide-react";
 import { CategoryFilterDropdown } from "./questions/CategoryFilterDropdown";
 import { DifficultyFilterDropdown } from "./questions/DifficultyFilterDropdown";
@@ -9,6 +9,7 @@ import { BulkActionBar } from "./questions/BulkActionBar";
 import { QuestionsPagination } from "./questions/QuestionsPagination";
 import { QuestionTableRow } from "./questions/QuestionTableRow";
 import { QuestionMobileCard } from "./questions/QuestionMobileCard";
+import { QuestionPreviewModal } from "./questions/QuestionPreviewModal";
 import { useAdminStore } from "@/stores/useAdminStore";
 import { useDragScroll } from "@/hooks/useDragScroll";
 
@@ -76,6 +77,11 @@ export default function QuestionsTab(props: QuestionsTabProps) {
   const setStatusEditFor = props.setStatusEditFor ?? storeSetStatusEditFor;
   const onInlineStatusChange = props.onInlineStatusChange ?? storeInlineStatusChange;
   const onBulkAction = props.onBulkAction ?? storeBulkAction;
+  useEffect(() => {
+    if (!props.questionStats && Object.keys(storeQuestionStats).length === 0) {
+      useAdminStore.getState().loadQuestionStats();
+    }
+  }, [props.questionStats, storeQuestionStats]);
 
   const categoryMap = useMemo(() => {
     if (props.categoryMap) return props.categoryMap;
@@ -102,6 +108,7 @@ export default function QuestionsTab(props: QuestionsTabProps) {
   }, [props.filteredQuestions, questions, filterCategory, filterDifficulty, searchQuery]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [previewQuestion, setPreviewQuestion] = useState<any | null>(null);
   const [bulkAction, setBulkAction] = useState("");
   const [bulkTargetCategory, setBulkTargetCategory] = useState("");
   const [page, setPage] = useState(1);
@@ -343,6 +350,7 @@ export default function QuestionsTab(props: QuestionsTabProps) {
                       onToggleSelect={() => handleToggleSelect(q.id)}
                       setQModal={setQModal}
                       deleteQuestion={deleteQuestion}
+                      onPreviewQuestion={setPreviewQuestion}
                       busy={busy}
                       difficultyEditFor={difficultyEditFor}
                       setDifficultyEditFor={setDifficultyEditFor}
@@ -382,6 +390,7 @@ export default function QuestionsTab(props: QuestionsTabProps) {
                   onToggleExpand={() => toggleExpand(q.id)}
                   setQModal={setQModal}
                   deleteQuestion={deleteQuestion}
+                  onPreviewQuestion={setPreviewQuestion}
                   busy={busy}
                   difficultyEditFor={difficultyEditFor}
                   setDifficultyEditFor={setDifficultyEditFor}
@@ -417,6 +426,20 @@ export default function QuestionsTab(props: QuestionsTabProps) {
           }}
         />
       </div>
+
+      <AnimatePresence>
+        {previewQuestion !== null && (
+          <QuestionPreviewModal
+            question={previewQuestion}
+            category={
+              previewQuestion.category_id
+                ? categoryMap[String(previewQuestion.category_id)]
+                : null
+            }
+            onClose={() => setPreviewQuestion(null)}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

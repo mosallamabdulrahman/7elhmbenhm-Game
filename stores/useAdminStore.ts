@@ -277,25 +277,8 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
 
   loadQuestionStats: async () => {
     try {
-      const { data, error } = await supabase
-        .from("room_questions")
-        .select("question_bank_id, is_used, answered_correctly")
-        .not("question_bank_id", "is", null);
-      if (error) {
-        console.error("Error loading question statistics:", error);
-        return;
-      }
-      const stats: Record<string, QuestionStats> = {};
-      (data || []).forEach((row: any) => {
-        if (!row.is_used) return;
-        const key = row.question_bank_id;
-        const s = stats[key] || { used: 0, correct: 0, incorrect: 0 };
-        s.used += 1;
-        if (row.answered_correctly === true) s.correct += 1;
-        else if (row.answered_correctly === false) s.incorrect += 1;
-        stats[key] = s;
-      });
-      set({ questionStats: stats });
+      const data = await callAdminApi("/api/admin/questions/stats");
+      set({ questionStats: data.stats || {} });
     } catch (err) {
       console.error("Error loading question statistics:", err);
     }

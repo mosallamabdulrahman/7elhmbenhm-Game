@@ -27,20 +27,26 @@ export async function POST(request: Request) {
     );
   }
 
-  // Allow either the configured site gate credentials or the primary admin credentials
-  const isEnvMatch =
-    expectedUsername &&
-    expectedPassword &&
-    timingSafeStringEqual(username, expectedUsername) &&
-    timingSafeStringEqual(password, expectedPassword);
+  const cleanUsername = username.trim().toLowerCase();
+  const cleanPassword = password.trim();
 
-  const isAdminMatch =
-    timingSafeStringEqual(username.toLowerCase(), "info@7elhmbenhm.com") &&
-    timingSafeStringEqual(password, "bgNjvMZs3BEF85");
+  const expectedUsername1 = (process.env.SITE_GATE_USERNAME || "info@7elhmbenhm.com").trim().toLowerCase();
+  const expectedPassword1 = (process.env.SITE_GATE_PASSWORD || "bgNjvMZs3BEF85").trim();
 
-  if (!isEnvMatch && !isAdminMatch) {
+  const expectedUsername2 = (process.env.SITE_GATE_USERNAME_2 || "abdo@7elhmbenhm.com").trim().toLowerCase();
+  const expectedPassword2 = (process.env.SITE_GATE_PASSWORD_2 || "QUdb4@6TqUrDS2").trim();
+
+  const isMatch1 =
+    timingSafeStringEqual(cleanUsername, expectedUsername1) &&
+    timingSafeStringEqual(cleanPassword, expectedPassword1);
+
+  const isMatch2 =
+    timingSafeStringEqual(cleanUsername, expectedUsername2) &&
+    timingSafeStringEqual(cleanPassword, expectedPassword2);
+
+  if (!isMatch1 && !isMatch2) {
     return NextResponse.json(
-      { error: "بيانات الدخول غير صحيحة." },
+      { error: "البريد الإلكتروني أو كلمة المرور غير صحيحة." },
       { status: 401 }
     );
   }

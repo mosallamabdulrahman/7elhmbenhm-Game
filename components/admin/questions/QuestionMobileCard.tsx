@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "motion/react";
-import { ChevronDown, ChevronUp, Video, Music, Timer } from "lucide-react";
+import { ChevronDown, ChevronUp, Video, Music, Timer, Eye } from "lucide-react";
 import { DIFFICULTY_AR } from "@/lib/admin-constants";
 
 interface QuestionMobileCardProps {
@@ -15,6 +15,7 @@ interface QuestionMobileCardProps {
   onToggleExpand: () => void;
   setQModal: (q: any) => void;
   deleteQuestion: (id: string) => void;
+  onPreviewQuestion: (q: any) => void;
   busy: boolean;
   difficultyEditFor: string | null;
   setDifficultyEditFor: (val: React.SetStateAction<string | null>) => void;
@@ -34,6 +35,7 @@ export function QuestionMobileCard({
   onToggleExpand,
   setQModal,
   deleteQuestion,
+  onPreviewQuestion,
   busy,
   difficultyEditFor,
   setDifficultyEditFor,
@@ -158,6 +160,15 @@ export function QuestionMobileCard({
 
       {/* Action Links */}
       <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 pt-0.5">
+        <button
+          type="button"
+          onClick={() => onPreviewQuestion(q)}
+          className="text-emerald-700 hover:underline cursor-pointer flex items-center gap-1 font-bold"
+        >
+          <Eye className="w-3.5 h-3.5" />
+          <span>معاينة السؤال</span>
+        </button>
+        <span>|</span>
         <button
           type="button"
           onClick={() => setQModal(q)}

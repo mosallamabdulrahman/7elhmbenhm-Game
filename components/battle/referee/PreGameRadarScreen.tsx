@@ -1,21 +1,27 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import Image from "next/image";
-import { Radar, ArrowLeft, Swords, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  Radar,
+  AlertCircle,
+  ArrowLeft,
+  Swords,
+  CheckCircle2,
+} from "lucide-react";
 import GameLogo from "@/components/common/GameLogo";
-import { UNIT_IMAGES, UNIT_NAMES } from "@/lib/game-data";
+import { UnifiedBattleBoard } from "../UnifiedBattleBoard";
+
 import { useBattleStore } from "@/stores/useBattleStore";
 
-export interface PreGameRadarScreenProps {
+interface PreGameRadarScreenProps {
   room?: any;
   teams?: any[];
   onExecuteRadar: (
-    forTeamIndex: number,
+    scannerTeamIndex: number,
     cellIndex: number,
   ) => Promise<{ cells: Array<{ cell_index: number; unit_type: string | null }> }>;
-  onComplete: () => void;
+  onComplete: () => Promise<void> | void;
   onExit: () => void;
 }
 
@@ -30,61 +36,65 @@ export function PreGameRadarScreen({
   const storeTeams = useBattleStore((s) => s.teams);
   const room = propRoom ?? storeRoom;
   const teams = propTeams ?? storeTeams;
-  // Step 1: Team 1 scans Team 2 | Step 2: Team 2 scans Team 1
+  // Step 1: team 1 scans team 2's board
+  // Step 2: team 2 scans team 1's board
   const [activeStep, setActiveStep] = useState<1 | 2>(1);
-  const [hoveredCell, setHoveredCell] = useState<number | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  // Store revealed cells for each target team (targetTeamIndex -> cells map)
-  const [revealedByTarget, setRevealedByTarget] = useState<
-    Record<number, Array<{ cell_index: number; unit_type: string | null }>>
-  >({
-    1: [],
-    2: [],
-  });
-
   const [step1Done, setStep1Done] = useState(false);
   const [step2Done, setStep2Done] = useState(false);
+
+  // Hover state for 3x3 highlighting
+  const [hoveredCell, setHoveredCell] = useState<number | null>(null);
+
+  // Local storage of revealed cells per target team
+  // team_index -> array of { cell_index, unit_type }
+  const [revealedByTarget, setRevealedByTarget] = useState<
+    Record<number, Array<{ cell_index: number; unit_type: string | null }>>
+  >({});
+
+  const [isScanning, setIsScanning] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const team1 = teams.find((t) => t.team_index === 1);
   const team2 = teams.find((t) => t.team_index === 2);
 
-  // In Step 1: Scanner is Team 1, Target is Team 2
-  // In Step 2: Scanner is Team 2, Target is Team 1
-  const currentScannerTeam = activeStep === 1 ? team1 : team2;
-  const currentTargetTeam = activeStep === 1 ? team2 : team1;
-  const currentScannerIndex = activeStep === 1 ? 1 : 2;
+  const currentScannerIndex = activeStep;
   const currentTargetIndex = activeStep === 1 ? 2 : 1;
 
-  const currentReveals = revealedByTarget[currentTargetIndex] || [];
-  const revealMap = new Map<number, string | null>();
-  currentReveals.forEach((r) => revealMap.set(r.cell_index, r.unit_type));
+  const currentScannerTeam = activeStep === 1 ? team1 : team2;
+  const currentTargetTeam = activeStep === 1 ? team2 : team1;
 
   const isCurrentStepDone = activeStep === 1 ? step1Done : step2Done;
 
-  // Compute 3x3 surrounding cells for a given center cell
-  const getRadarRadiusCells = (centerIndex: number | null): number[] => {
-    if (centerIndex === null || centerIndex < 0 || centerIndex > 35) return [];
-    const row = Math.floor(centerIndex / 6);
-    const col = centerIndex % 6;
-    const indices: number[] = [];
-    for (let r = Math.max(0, row - 1); r <= Math.min(5, row + 1); r++) {
-      for (let c = Math.max(0, col - 1); c <= Math.min(5, col + 1); c++) {
-        indices.push(r * 6 + c);
+  // Compute 3x3 surrounding cells on a 6x6 board
+  const highlightedCells = useMemo(() => {
+    if (hoveredCell === null || isCurrentStepDone) return [];
+    const r = Math.floor(hoveredCell / 6);
+    const c = hoveredCell % 6;
+    const cells: number[] = [];
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        const nr = r + dr;
+        const nc = c + dc;
+        if (nr >= 0 && nr < 6 && nc >= 0 && nc < 6) {
+          cells.push(nr * 6 + nc);
+        }
       }
     }
-    return indices;
-  };
+    return cells;
+  }, [hoveredCell, isCurrentStepDone]);
 
-  const highlightedCells = !isCurrentStepDone
-    ? getRadarRadiusCells(hoveredCell)
-    : [];
+  // Reveal map for current target team
+  const targetReveals = revealedByTarget[currentTargetIndex] || [];
+  const revealMap = useMemo(() => {
+    const map = new Map<number, string | null>();
+    targetReveals.forEach((item) => map.set(item.cell_index, item.unit_type));
+    return map;
+  }, [targetReveals]);
 
   const handleCellClick = async (cellIndex: number) => {
     if (isCurrentStepDone || isScanning) return;
-    setIsScanning(true);
     setErrorMsg(null);
+    setIsScanning(true);
 
     try {
       const res = await onExecuteRadar(currentScannerIndex, cellIndex);
@@ -111,207 +121,136 @@ export function PreGameRadarScreen({
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col dir-rtl pb-16">
+    <div className="min-h-screen bg-gradient-to-b from-[#081528] via-[#0b203c] to-[#06101e] text-white flex flex-col dir-rtl overflow-x-hidden">
       {/* Top Header */}
-      <header className="bg-slate-950/90 border-b border-slate-800 py-3.5 px-4 shadow-lg backdrop-blur-md sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+      <header className="bg-slate-950/80 border-b border-white/10 py-2.5 px-4 shadow-lg backdrop-blur-md sticky top-0 z-30">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <GameLogo className="w-12 h-12 shrink-0" />
+            <GameLogo className="w-10 h-10 shrink-0" />
             <div>
-              <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                <Radar className="w-5 h-5 text-cyan-400 animate-spin" />
-                مرحلة استطلاع الرادار التمهيدي
+              <h1 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                <Radar className="w-4 h-4 text-cyan-400 animate-spin" />
+                استطلاع الرادار التمهيدي
               </h1>
-              <p className="text-xs text-slate-400 font-semibold">
-                شاشة الحكم الحصرية لكشف استطلاع الفريقين قبل صافرة البداية
+              <p className="text-[10px] sm:text-xs text-sky-200/80 font-semibold">
+                شاشة كشف استطلاع الفريقين قبل صافرة البداية
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={onExit}
-              className="text-xs font-bold text-slate-400 hover:text-rose-400 bg-slate-800/80 hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700 transition cursor-pointer"
-            >
-              الخروج
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onExit}
+            className="text-xs font-bold text-slate-300 hover:text-rose-300 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-xl border border-white/15 transition cursor-pointer"
+          >
+            الخروج
+          </button>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="max-w-4xl w-full mx-auto px-4 mt-6 flex-grow flex flex-col items-center">
-        {/* Step Indicator Tracker */}
-        <div className="w-full bg-slate-950/60 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xl mb-6">
-          <div className="flex items-center justify-between gap-2 max-w-xl mx-auto">
-            {/* Step 1 Pill */}
-            <div
-              className={`flex-1 flex items-center gap-2.5 p-3 rounded-2xl border transition-all ${
-                activeStep === 1
-                  ? "bg-cyan-500/10 border-cyan-500/50 text-cyan-300"
-                  : step1Done
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                    : "bg-slate-900 border-slate-800 text-slate-500"
-              }`}
-            >
-              <div
-                className={`w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                  step1Done
-                    ? "bg-emerald-500 text-white"
-                    : activeStep === 1
-                      ? "bg-cyan-500 text-white"
-                      : "bg-slate-800 text-slate-500"
-                }`}
-              >
-                {step1Done ? "✓" : "1"}
-              </div>
-              <div className="min-w-0">
-                <span className="text-[10px] block font-semibold text-slate-400">
-                  المرحلة الأولى
-                </span>
-                <span className="text-xs sm:text-sm font-bold truncate block">
-                  رادار {team1?.name || "الفريق الأول"}
-                </span>
-              </div>
-            </div>
+      {/* Main Container — side-by-side: info panel LEFT, map RIGHT */}
+      <main className="flex-grow w-full max-w-6xl mx-auto px-2 sm:px-4 py-3 sm:py-5 flex flex-col lg:flex-row items-center lg:items-start justify-center gap-4 lg:gap-6">
 
-            <div className="text-slate-600 font-bold text-sm">←</div>
+        {/* ── Left Info Panel ── */}
+        <aside className="w-full lg:w-64 xl:w-72 flex flex-col gap-3 shrink-0 lg:sticky lg:top-20">
 
-            {/* Step 2 Pill */}
-            <div
-              className={`flex-1 flex items-center gap-2.5 p-3 rounded-2xl border transition-all ${
-                activeStep === 2
-                  ? "bg-orange-500/10 border-orange-500/50 text-orange-300"
-                  : step2Done
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                    : "bg-slate-900 border-slate-800 text-slate-500"
-              }`}
-            >
-              <div
-                className={`w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                  step2Done
-                    ? "bg-emerald-500 text-white"
-                    : activeStep === 2
-                      ? "bg-orange-500 text-white"
-                      : "bg-slate-800 text-slate-500"
-                }`}
-              >
-                {step2Done ? "✓" : "2"}
-              </div>
-              <div className="min-w-0">
-                <span className="text-[10px] block font-semibold text-slate-400">
-                  المرحلة الثانية
-                </span>
-                <span className="text-xs sm:text-sm font-bold truncate block">
-                  رادار {team2?.name || "الفريق الثاني"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Current Instruction Banner */}
-        <div className="w-full max-w-xl text-center mb-5">
-          <span className="text-xs font-bold text-cyan-400 bg-cyan-950/60 border border-cyan-800/80 px-4 py-1.5 rounded-full inline-block mb-2">
-            الدور الآن: {currentScannerTeam?.name} يستطلع خريطة {currentTargetTeam?.name}
-          </span>
-          <h2 className="text-lg sm:text-xl font-bold text-white">
-            {!isCurrentStepDone
-              ? `اختر المربع الذي طلبه ${currentScannerTeam?.name} لكشف محيطه (3×3)`
-              : `✓ تم استطلاع الرادار بنجاح لصالح ${currentScannerTeam?.name}`}
-          </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            {!isCurrentStepDone
-              ? "انقر على المربع المطلوب بالشبكة أدناه لتشغيل الرادار وكشف جنود الخصم."
-              : "راجع المربعات المكشوفة مع الفريق، ثم اضغط على زر المتابعة."}
-          </p>
-        </div>
-
-        {/* Error Alert */}
-        {errorMsg && (
-          <div className="w-full max-w-md bg-rose-950/80 border border-rose-800 text-rose-200 px-4 py-2.5 rounded-2xl text-xs font-bold mb-4 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
-
-        {/* Radar Interactive Board (6x6) */}
-        <div className="relative bg-slate-950 border-2 border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl max-w-md w-full aspect-square flex flex-col justify-center">
-          <div className="grid grid-cols-6 gap-1.5 sm:gap-2 w-full h-full">
-            {Array.from({ length: 36 }).map((_, idx) => {
-              const isRevealed = revealMap.has(idx);
-              const unit = isRevealed ? revealMap.get(idx) : null;
-              const hasUnit = unit && unit !== "null";
-              const isHighlighted = highlightedCells.includes(idx);
-              const isCenter = hoveredCell === idx && !isCurrentStepDone;
-
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  disabled={isCurrentStepDone || isScanning}
-                  onMouseEnter={() => setHoveredCell(idx)}
-                  onMouseLeave={() => setHoveredCell(null)}
-                  onClick={() => handleCellClick(idx)}
-                  className={`aspect-square rounded-xl sm:rounded-2xl border transition-all flex flex-col items-center justify-center relative p-1 cursor-pointer select-none ${
-                    isRevealed
-                      ? hasUnit
-                        ? unit === "mine"
-                          ? "bg-rose-950/90 border-rose-500 text-rose-300 shadow-md shadow-rose-950/50"
-                          : "bg-cyan-950/90 border-cyan-400 text-cyan-200 shadow-md shadow-cyan-950/50"
-                        : "bg-slate-900/80 border-slate-700 text-slate-500"
-                      : isHighlighted
-                        ? isCenter
-                          ? "bg-cyan-500/30 border-cyan-400 text-cyan-200 ring-2 ring-cyan-400/50 scale-105"
-                          : "bg-cyan-500/15 border-cyan-500/40 text-cyan-300"
-                        : "bg-slate-900 border-slate-800 text-slate-600 hover:border-slate-700"
-                  }`}
-                >
-                  {isRevealed && hasUnit && UNIT_IMAGES[unit] ? (
-                    <motion.div
-                      initial={{ scale: 0.2, rotate: -20, opacity: 0 }}
-                      animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                      className="flex flex-col items-center justify-center w-full h-full"
-                    >
-                      <Image
-                        src={UNIT_IMAGES[unit]}
-                        alt={UNIT_NAMES[unit] || ""}
-                        width={28}
-                        height={28}
-                        className="w-5 h-5 sm:w-8 sm:h-8 object-contain drop-shadow-md"
-                      />
-                      <span className="text-[7px] sm:text-[8px] font-bold mt-0.5 truncate leading-tight">
-                        {UNIT_NAMES[unit]}
-                      </span>
-                    </motion.div>
-                  ) : isRevealed ? (
-                    <span className="text-[9px] font-bold text-slate-500">
-                      فاضي
-                    </span>
-                  ) : (
-                    <span className="text-[10px] sm:text-xs font-bold text-slate-500">
-                      {idx + 1}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Loading Overlay */}
-          {isScanning && (
-            <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs rounded-3xl flex flex-col items-center justify-center gap-2">
-              <Radar className="w-10 h-10 text-cyan-400 animate-spin" />
-              <span className="text-xs font-bold text-cyan-300">
-                قاعدين نمسح المربعات بالرادار...
+          {/* Active Turn Card */}
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl px-4 py-3 shadow-md">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping shrink-0" />
+              <span className="text-xs sm:text-sm font-bold text-white">
+                الدور الحالي
               </span>
             </div>
-          )}
-        </div>
+            <div className="text-base sm:text-lg font-bold text-cyan-300 leading-tight">
+              {currentScannerTeam?.name}
+            </div>
+            <p className="text-[10px] sm:text-xs text-sky-200/90 font-semibold mt-1">
+              يستطلع خريطة {currentTargetTeam?.name}
+            </p>
+          </div>
 
-        {/* Action Button Section */}
-        <div className="w-full max-w-md mt-6 text-center">
+          {/* Step Tracker */}
+          <div className="bg-white/8 backdrop-blur-md border border-white/15 rounded-2xl px-4 py-3 shadow-md flex flex-col gap-2.5">
+            <span className="text-[10px] font-bold text-sky-200/80 uppercase tracking-wider mb-1">
+              خطوات الاستطلاع
+            </span>
+
+            {/* Step 1 */}
+            <div
+              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+                activeStep === 1
+                  ? "bg-[#0F74C5]/30 border-[#1F9FF6] text-sky-200 shadow-sm"
+                  : step1Done
+                    ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-300"
+                    : "bg-white/5 border-white/10 text-slate-400"
+              }`}
+            >
+              {step1Done ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              ) : (
+                <span className="w-4 h-4 rounded-full bg-[#1F9FF6] text-slate-950 flex items-center justify-center text-[10px] shrink-0">
+                  1
+                </span>
+              )}
+              <div className="flex flex-col leading-tight">
+                <span>{team1?.name}</span>
+                <span className="text-[10px] font-semibold opacity-70">يستطلع {team2?.name}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 px-3">
+              <div className="flex-grow h-px bg-white/20" />
+              <span className="text-white/40 text-xs">↓</span>
+              <div className="flex-grow h-px bg-white/20" />
+            </div>
+
+            {/* Step 2 */}
+            <div
+              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+                activeStep === 2
+                  ? "bg-[#20414B]/50 border-[#6F9050] text-[#C2E581] shadow-sm"
+                  : step2Done
+                    ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-300"
+                    : "bg-white/5 border-white/10 text-slate-400"
+              }`}
+            >
+              {step2Done ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              ) : (
+                <span className="w-4 h-4 rounded-full bg-[#6F9050] text-white flex items-center justify-center text-[10px] shrink-0">
+                  2
+                </span>
+              )}
+              <div className="flex flex-col leading-tight">
+                <span>{team2?.name}</span>
+                <span className="text-[10px] font-semibold opacity-70">يستطلع {team1?.name}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Instruction hint */}
+          {!isCurrentStepDone && (
+            <div className="bg-sky-900/40 border border-sky-700/50 rounded-xl px-3 py-2.5 text-[11px] text-sky-200 font-semibold leading-relaxed">
+              👆 انقر على أي مربع في الخريطة لكشف منطقة 3×3 من خريطة الخصم
+            </div>
+          )}
+          {isCurrentStepDone && (
+            <div className="bg-emerald-900/40 border border-emerald-600/50 rounded-xl px-3 py-2.5 text-[11px] text-emerald-300 font-semibold flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>تم الاستطلاع بنجاح لصالح {currentScannerTeam?.name}</span>
+            </div>
+          )}
+
+          {/* Error Alert */}
+          {errorMsg && (
+            <div className="bg-rose-950/80 border border-rose-800 text-rose-200 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {/* Action Buttons */}
           <AnimatePresence mode="wait">
             {activeStep === 1 && step1Done && (
               <motion.button
@@ -324,9 +263,9 @@ export function PreGameRadarScreen({
                   setActiveStep(2);
                   setHoveredCell(null);
                 }}
-                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm py-3.5 px-6 rounded-2xl shadow-xl flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="w-full bg-gradient-to-r from-[#20414B] to-[#6F9050] hover:from-[#1a3540] hover:to-[#5a7840] text-white font-bold text-sm py-3 px-4 rounded-2xl shadow-xl border border-[#C2E581]/40 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
-                <span>الانتقال لرادار {team2?.name}</span>
+                <span>رادار {team2?.name}</span>
                 <ArrowLeft className="w-4 h-4" />
               </motion.button>
             )}
@@ -339,13 +278,47 @@ export function PreGameRadarScreen({
                 exit={{ opacity: 0, y: -10 }}
                 type="button"
                 onClick={onComplete}
-                className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-sm sm:text-base py-4 px-6 rounded-2xl shadow-xl flex items-center justify-center gap-2.5 transition-all cursor-pointer"
+                className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-bold text-sm py-3 px-4 rounded-2xl shadow-xl flex items-center justify-center gap-2.5 transition-all cursor-pointer"
               >
                 <Swords className="w-5 h-5" />
-                <span>دخول الغرفة وبدء اللعبة ⚔️</span>
+                <span>بدء اللعبة ⚔️</span>
               </motion.button>
             )}
           </AnimatePresence>
+        </aside>
+
+        {/* ── Radar Map (Right) ── */}
+        <div className="relative w-full max-w-[min(92vw,92vh-100px)] lg:max-w-[min(65vw,82dvh-80px)] xl:max-w-[min(60vw,78dvh-80px)] mx-auto lg:mx-0 shrink-0">
+          <UnifiedBattleBoard
+            mode="radar"
+            title="استطلاع الرادار"
+            subtitle={
+              !isCurrentStepDone
+                ? `اختر مربعاً لكشف محيطه (3×3) في خريطة ${currentTargetTeam?.name || ""}`
+                : `✓ تم الاستطلاع لصالح ${currentScannerTeam?.name}`
+            }
+            team1={{ name: team1?.name, score: team1?.score || 0 }}
+            team2={{ name: team2?.name, score: team2?.score || 0 }}
+            showScores={true}
+            radarRevealMap={revealMap}
+            hoveredCell={hoveredCell}
+            highlightedCells={highlightedCells}
+            isCurrentStepDone={isCurrentStepDone}
+            isScanning={isScanning}
+            onRadarCellHover={setHoveredCell}
+            onRadarCellClick={handleCellClick}
+            className="w-full"
+          />
+
+          {/* Loading Overlay */}
+          {isScanning && (
+            <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-xs rounded-3xl flex flex-col items-center justify-center gap-2 z-30">
+              <Radar className="w-10 h-10 text-cyan-400 animate-spin" />
+              <span className="text-xs font-bold text-cyan-300">
+                قاعدين نمسح المربعات بالرادار...
+              </span>
+            </div>
+          )}
         </div>
       </main>
     </div>
