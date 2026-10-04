@@ -113,6 +113,23 @@ export function QuestionTableRow({
           >
             حذف
           </button>
+          <span className="text-slate-300">|</span>
+          <button
+            className="disabled:opacity-50 cursor-pointer"
+            type="button"
+            onClick={() => {
+              const { id, created_at, ...rest } = q;
+              setQModal({
+                ...rest,
+                isDuplicate: true,
+                question_text: q.question_text
+                  ? `${q.question_text}  (نسخه)`
+                  : "",
+              });
+            }}
+          >
+            تكرار
+          </button>
         </div>
       </td>
       <td className="p-3 text-slate-600">
@@ -254,7 +271,8 @@ export function QuestionTableRow({
                     : "bg-rose-50 text-rose-600 border border-rose-200"
               }`}
             >
-              مستوى مقترح: {suggestedDifficulty ? DIFFICULTY_AR[suggestedDifficulty] : ""}
+              مستوى مقترح:{" "}
+              {suggestedDifficulty ? DIFFICULTY_AR[suggestedDifficulty] : ""}
             </span>
           </div>
         ) : (

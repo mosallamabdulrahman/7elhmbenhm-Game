@@ -17,7 +17,11 @@ import {
 import { DIFFICULTY_STRIKES } from "@/lib/admin-constants";
 import { AnswerImageUpload, MediaUpload } from "./MediaUploaders";
 
-const nextPosition = (questions: any[], categoryId: string, excludeId?: string) => {
+const nextPosition = (
+  questions: any[],
+  categoryId: string,
+  excludeId?: string,
+) => {
   const used = (questions || [])
     .filter((q) => q.category_id === categoryId && q.id !== excludeId)
     .map((q) => q.position);
@@ -30,7 +34,11 @@ interface CategorySelectDropdownProps {
   onChange: (id: string) => void;
 }
 
-function CategorySelectDropdown({ categories, selectedId, onChange }: CategorySelectDropdownProps) {
+function CategorySelectDropdown({
+  categories,
+  selectedId,
+  onChange,
+}: CategorySelectDropdownProps) {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
@@ -40,7 +48,10 @@ function CategorySelectDropdown({ categories, selectedId, onChange }: CategorySe
 
   useEffect(() => {
     const handleOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     };
@@ -150,12 +161,17 @@ export default function QuestionModal({
       );
       return {
         ...question,
+        id: question.isDuplicate ? undefined : question.id,
+        position: question.isDuplicate
+          ? nextPosition(questions, question.category_id)
+          : question.position,
         category_id: hasValidCategory
           ? question.category_id
           : categories[0]?.id || "",
         show_question_first: Boolean(question.show_question_first),
         timer_seconds:
-          question.timer_seconds !== undefined && question.timer_seconds !== null
+          question.timer_seconds !== undefined &&
+          question.timer_seconds !== null
             ? question.timer_seconds
             : 60,
       };
@@ -287,7 +303,11 @@ export default function QuestionModal({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
           <h2 className="font-bold text-slate-900">
-            {question ? "تعديل سؤال" : "سؤال جديد"}
+            {question?.isDuplicate
+              ? "تكرار السؤال"
+              : question
+                ? "تعديل سؤال"
+                : "سؤال جديد"}
           </h2>
           <button
             type="button"
@@ -550,7 +570,8 @@ export default function QuestionModal({
 
           <div>
             <label className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
-              <ImageIcon className="h-3 w-3" /> ميديا الإجابة (صورة / صوت / فيديو - اختياري)
+              <ImageIcon className="h-3 w-3" /> ميديا الإجابة (صورة / صوت /
+              فيديو - اختياري)
             </label>
             <div className="mt-1">
               <AnswerImageUpload
@@ -625,6 +646,7 @@ export default function QuestionModal({
             onClick={() => {
               const finalForm = {
                 ...form,
+                id: question?.isDuplicate ? undefined : form.id,
                 question_text: isWlaKelma
                   ? form.question_text?.trim() ||
                     form.answer_text?.trim() ||

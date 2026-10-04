@@ -54,9 +54,7 @@ export function QuestionMobileCard({
       : null;
 
   return (
-    <div
-      className={`p-3.5 space-y-2 ${isSelected ? "bg-[#f0f6fc]" : ""}`}
-    >
+    <div className={`p-3.5 space-y-2 ${isSelected ? "bg-[#f0f6fc]" : ""}`}>
       {/* Header Row */}
       <div className="flex items-start justify-between gap-2">
         <input
@@ -131,9 +129,7 @@ export function QuestionMobileCard({
                     setStatusEditFor(null);
                   }}
                   className={`block w-full text-right px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-50 cursor-pointer ${
-                    !q.is_active
-                      ? "text-rose-700 bg-rose-50"
-                      : "text-slate-700"
+                    !q.is_active ? "text-rose-700 bg-rose-50" : "text-slate-700"
                   }`}
                 >
                   معطّل
@@ -185,6 +181,23 @@ export function QuestionMobileCard({
         >
           حذف
         </button>
+        <span>|</span>
+        <button
+          className="disabled:opacity-50 cursor-pointer"
+          type="button"
+          onClick={() => {
+            const { id, created_at, ...rest } = q;
+            setQModal({
+              ...rest,
+              isDuplicate: true,
+              question_text: q.question_text
+                ? `${q.question_text}  (نسخه)`
+                : "",
+            });
+          }}
+        >
+          تكرار
+        </button>
       </div>
 
       {/* Collapsible Key-Value Details */}
@@ -235,9 +248,7 @@ export function QuestionMobileCard({
                 type="button"
                 disabled={busy}
                 onClick={() =>
-                  setDifficultyEditFor((cur) =>
-                    cur === q.id ? null : q.id,
-                  )
+                  setDifficultyEditFor((cur) => (cur === q.id ? null : q.id))
                 }
                 className={`inline-flex items-center gap-1.5 font-semibold px-2 py-0.5 rounded text-[11px] transition cursor-pointer disabled:opacity-50 ${
                   q.difficulty === "easy"
@@ -314,9 +325,7 @@ export function QuestionMobileCard({
                         <Video className="w-3.5 h-3.5" />
                         <span>
                           فيديو
-                          {q.media_play_count
-                            ? ` × ${q.media_play_count}`
-                            : ""}
+                          {q.media_play_count ? ` × ${q.media_play_count}` : ""}
                         </span>
                       </>
                     ) : (
@@ -324,9 +333,7 @@ export function QuestionMobileCard({
                         <Music className="w-3.5 h-3.5" />
                         <span>
                           صوت
-                          {q.media_play_count
-                            ? ` × ${q.media_play_count}`
-                            : ""}
+                          {q.media_play_count ? ` × ${q.media_play_count}` : ""}
                         </span>
                       </>
                     )}
@@ -393,68 +400,68 @@ export function QuestionMobileCard({
                 {q.timer_seconds || 60}ث
               </span>
               <div className="relative inline-block">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() =>
-                  setStatusEditFor((cur) =>
-                    cur === `exp_${q.id}` ? null : `exp_${q.id}`,
-                  )
-                }
-                className={`inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded text-[11px] transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                  q.is_active
-                    ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    q.is_active ? "bg-emerald-500" : "bg-slate-400"
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    setStatusEditFor((cur) =>
+                      cur === `exp_${q.id}` ? null : `exp_${q.id}`,
+                    )
+                  }
+                  className={`inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded text-[11px] transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                    q.is_active
+                      ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   }`}
-                />
-                <span>{q.is_active ? "مفعّل" : "معطّل"}</span>
-                <ChevronDown className="w-3 h-3 opacity-60" />
-              </button>
-
-              {statusEditFor === `exp_${q.id}` && (
-                <>
-                  <div
-                    className="fixed inset-0 z-30"
-                    onClick={() => setStatusEditFor(null)}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      q.is_active ? "bg-emerald-500" : "bg-slate-400"
+                    }`}
                   />
-                  <div className="absolute left-0 top-full -mt-0.5 z-40 w-28 rounded-lg border border-[#ccd0d4] bg-white shadow-lg overflow-hidden py-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onInlineStatusChange(q, true);
-                        setStatusEditFor(null);
-                      }}
-                      className={`block w-full text-right px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-50 cursor-pointer ${
-                        q.is_active
-                          ? "text-emerald-700 bg-emerald-50"
-                          : "text-slate-700"
-                      }`}
-                    >
-                      مفعّل
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onInlineStatusChange(q, false);
-                        setStatusEditFor(null);
-                      }}
-                      className={`block w-full text-right px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-50 cursor-pointer ${
-                        !q.is_active
-                          ? "text-rose-700 bg-rose-50"
-                          : "text-slate-700"
-                      }`}
-                    >
-                      معطّل
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+                  <span>{q.is_active ? "مفعّل" : "معطّل"}</span>
+                  <ChevronDown className="w-3 h-3 opacity-60" />
+                </button>
+
+                {statusEditFor === `exp_${q.id}` && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-30"
+                      onClick={() => setStatusEditFor(null)}
+                    />
+                    <div className="absolute left-0 top-full -mt-0.5 z-40 w-28 rounded-lg border border-[#ccd0d4] bg-white shadow-lg overflow-hidden py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onInlineStatusChange(q, true);
+                          setStatusEditFor(null);
+                        }}
+                        className={`block w-full text-right px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-50 cursor-pointer ${
+                          q.is_active
+                            ? "text-emerald-700 bg-emerald-50"
+                            : "text-slate-700"
+                        }`}
+                      >
+                        مفعّل
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onInlineStatusChange(q, false);
+                          setStatusEditFor(null);
+                        }}
+                        className={`block w-full text-right px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-50 cursor-pointer ${
+                          !q.is_active
+                            ? "text-rose-700 bg-rose-50"
+                            : "text-slate-700"
+                        }`}
+                      >
+                        معطّل
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </motion.div>

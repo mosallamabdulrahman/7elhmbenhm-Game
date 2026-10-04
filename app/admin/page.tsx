@@ -100,7 +100,7 @@ export default function AdminPage() {
       <AnimatePresence>
         {qModal !== null && (
           <QuestionModal
-            question={qModal.id ? qModal : null}
+            question={qModal.id || qModal.isDuplicate ? qModal : null}
             categories={categories}
             questions={questions}
             onSave={saveQuestion}
