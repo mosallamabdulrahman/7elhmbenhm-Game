@@ -19,35 +19,35 @@ export default function HowToPlaySection() {
   const steps: StepItem[] = [
     {
       number: "1",
-      badgeColor: "bg-[#70c922]",
+      badgeColor: "bg-[#44C530]",
       type: "image",
-      src: "/images/gear/tank.png",
-      title: "جهز جيشك",
-      desc: "اشتر وحداتك\nووزعها بسرية",
+      src: "/images/tank.png",
+      title: "اختار الفئات",
+      desc: "اختر 6 فئات\nوسمّ الفرق المتنافسة",
     },
     {
       number: "2",
-      badgeColor: "bg-[#1F9FF6]",
+      badgeColor: "bg-[#67C3FF]",
       type: "image",
-      src: "/images/lamb.png",
-      title: "جاوب",
-      desc: "أجب عن الأسئلة\nلتحصل على الطلقات",
+      src: "/images/shot.png",
+      title: "جاوب بالتتابع",
+      desc: "اختر المربعات بالتسلسل\nمن 1 إلى 30",
     },
     {
       number: "3",
-      badgeColor: "bg-[#9333ea]",
+      badgeColor: "bg-[#0B2D4D]",
       type: "image",
-      src: "/images/shot.png",
-      title: "اهجم",
-      desc: "اختر موقعاً على\nخريطة الخصم",
+      src: "/images/lamb.png",
+      title: "اجمع النقاط",
+      desc: "أجب إجابة صحيحة\nلتكسب نقاط السؤال",
     },
     {
       number: "4",
-      badgeColor: "bg-[#f59e0b]",
+      badgeColor: "bg-[#44C530]",
       type: "image",
       src: "/images/cup.png",
-      title: "دمر واربح",
-      desc: "أعلى نقاط عند نهاية\nالمعركة تفوز",
+      title: "توج بالفوز",
+      desc: "أعلى نقاط عند نهاية\nالأسئلة يتوج بطلاً",
     },
   ];
 
@@ -65,11 +65,11 @@ export default function HowToPlaySection() {
         >
           {/* Header */}
           <div className="text-center mb-5 sm:mb-7">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#20414B] mb-1.5">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0B2D4D] mb-1.5">
               شلون تلعب؟
             </h2>
             <p className="text-sm sm:text-base text-slate-500 font-semibold">
-              4 خطوات بسيطة للانطلاق في المعركة
+              4 خطوات بسيطة للانطلاق في التحدي
             </p>
           </div>
 

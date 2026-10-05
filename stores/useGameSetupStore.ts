@@ -28,6 +28,8 @@ export interface GameSetupState {
   gameName: string;
   team1Name: string;
   team2Name: string;
+  team1Color: string;
+  team2Color: string;
 
   // Submission & Room Result
   isSubmitting: boolean;
@@ -52,6 +54,8 @@ export interface GameSetupState {
   setGameName: (name: string) => void;
   setTeam1Name: (name: string) => void;
   setTeam2Name: (name: string) => void;
+  setTeam1Color: (color: string) => void;
+  setTeam2Color: (color: string) => void;
   setIsSubmitting: (submitting: boolean) => void;
   setCreatedRoom: (room: any | null) => void;
   setTeamTokens: (
@@ -79,6 +83,8 @@ const initialSetupState = {
   gameName: "",
   team1Name: "كتائب الفرسان",
   team2Name: "صقور النخبة",
+  team1Color: "#2563EB",
+  team2Color: "#F59E0B",
 
   isSubmitting: false,
   createdRoom: null,
@@ -150,6 +156,26 @@ export const useGameSetupStore = create<GameSetupState>((set, get) => ({
   setGameName: (gameName) => set({ gameName }),
   setTeam1Name: (team1Name) => set({ team1Name }),
   setTeam2Name: (team2Name) => set({ team2Name }),
+  setTeam1Color: (team1Color) => {
+    const { team2Color } = get();
+    const colors = ["#2563EB", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6", "#06B6D4"];
+    if (team1Color.toLowerCase() === team2Color.toLowerCase()) {
+      const nextCol = colors.find((c) => c.toLowerCase() !== team1Color.toLowerCase()) || "#F59E0B";
+      set({ team1Color, team2Color: nextCol });
+    } else {
+      set({ team1Color });
+    }
+  },
+  setTeam2Color: (team2Color) => {
+    const { team1Color } = get();
+    const colors = ["#2563EB", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6", "#06B6D4"];
+    if (team2Color.toLowerCase() === team1Color.toLowerCase()) {
+      const nextCol = colors.find((c) => c.toLowerCase() !== team2Color.toLowerCase()) || "#2563EB";
+      set({ team2Color, team1Color: nextCol });
+    } else {
+      set({ team2Color });
+    }
+  },
 
   setIsSubmitting: (isSubmitting) => set({ isSubmitting }),
   setCreatedRoom: (createdRoom) => set({ createdRoom }),
@@ -188,6 +214,8 @@ export const useGameSetupStore = create<GameSetupState>((set, get) => ({
       gameName,
       team1Name,
       team2Name,
+      team1Color,
+      team2Color,
       categoriesList,
       questionRows,
       triggerToast,
@@ -237,11 +265,19 @@ export const useGameSetupStore = create<GameSetupState>((set, get) => ({
       return false;
     }
 
+    if (team1Color.trim().toLowerCase() === team2Color.trim().toLowerCase()) {
+      triggerToast(
+        "لا يمكن اختيار نفس اللون لكلا الفريقين. يرجى اختيار لونين مختلفين.",
+        "error"
+      );
+      return false;
+    }
+
     set({ isSubmitting: true });
     try {
-      const selectedCategoryRecords = categoriesList.filter((category) =>
-        selectedCategories.includes(category.id)
-      );
+      const selectedCategoryRecords = selectedCategories
+        .map((catId) => categoriesList.find((c) => c.id === catId))
+        .filter(Boolean) as any[];
 
       let poolQuestions = questionRows;
       const missingAny = selectedCategories.some(
@@ -315,14 +351,30 @@ export const useGameSetupStore = create<GameSetupState>((set, get) => ({
         teamTokens: tokens,
       });
 
+      // Transition room to active playing status and ensure teams start with 0 score
+      await supabase
+        .from("game_rooms")
+        .update({ status: "playing" })
+        .eq("id", createResult.room_id);
+
+      await supabase
+        .from("teams")
+        .update({ score: 0, points: 0 })
+        .eq("room_id", createResult.room_id);
+
+
       if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          `sovereignty_room_colors_${room.id}`,
+          JSON.stringify({ team1: get().team1Color, team2: get().team2Color })
+        );
         window.localStorage.setItem(
           "sovereignty_active_room",
           JSON.stringify({ id: room.id, ...tokens })
         );
+        // Direct instant entry to game
+        window.location.assign(`/battle?room_id=${room.id}&role=judge`);
       }
-
-      triggerToast("جهزنا الغرفة وطلعنا روابط الانضمام بنجاح!", "success");
       return true;
     } catch (err: any) {
       console.error(err);

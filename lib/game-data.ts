@@ -10,7 +10,7 @@ export const UNIT_IMAGES: Record<string, string> = {
   tank: "/images/gear/tank.png",
   aircraft: "/images/gear/aircraft.png",
   submarine: "/images/gear/submarine.png",
-  mine: "/images/gear/mine.png",
+  mine: "/images/mine.png",
 };
 
 export const UNIT_NAMES: Record<string, string> = {
@@ -36,7 +36,8 @@ export const TACTICAL_TOOL_DETAILS: Record<
   },
   pit: {
     name: "حفرة",
-    description: "شغلها قبل السؤال — إذا أصبت جنود الخصم، نفس النقاط اللي تنخصم منه تنضاف لرصيدك مباشرة!",
+    description:
+      "شغلها قبل السؤال — إذا أصبت جنود الخصم، نفس النقاط اللي تنخصم منه تنضاف لرصيدك مباشرة!",
   },
   radar_scan: {
     name: "الرادار",
@@ -74,7 +75,7 @@ export const FALLBACK_CATEGORIES: QuestionCategory[] = [];
 // touching the incoming order (Supabase already sorts by sort_order).
 export const groupCategories = (
   categories: QuestionCategory[] = [],
-  groups: QuestionCategoryGroup[] = []
+  groups: QuestionCategoryGroup[] = [],
 ): {
   groups: { id: string; title: string; items: QuestionCategory[] }[];
   ungrouped: QuestionCategory[];
@@ -83,7 +84,7 @@ export const groupCategories = (
     (groups || []).map((group) => [
       String(group.id),
       group.name || group.title || "",
-    ])
+    ]),
   );
 
   const grouped: { id: string; title: string; items: QuestionCategory[] }[] =
@@ -118,10 +119,7 @@ export const groupCategories = (
 // question board (easy row, then medium row, then hard row).
 export const DIFFICULTY_TIERS = ["easy", "medium", "hard"];
 
-const normalizeQuestionRow = (
-  question: any,
-  category: QuestionCategory
-) => ({
+const normalizeQuestionRow = (question: any, category: QuestionCategory) => ({
   question_bank_id: question.id,
   category_id: category.id,
   category_name: category.name,
@@ -139,8 +137,7 @@ const normalizeQuestionRow = (
   media_play_count: question.media_play_count || null,
   show_question_first: Boolean(question.show_question_first),
   answer_image_url: question.answer_image_url || null,
-  timer_seconds:
-    Number(question.timer_seconds) > 0 ? Number(question.timer_seconds) : 60,
+  timer_seconds: 30,
 });
 
 const shuffle = <T>(rows: T[]): T[] => {
@@ -156,25 +153,159 @@ const shuffle = <T>(rows: T[]): T[] => {
 
 export const buildRoomQuestions = (
   categories: QuestionCategory[],
-  questionRows: any[] = []
-) =>
-  categories.flatMap((category) => {
+  questionRows: any[] = [],
+) => {
+  // For each category (in the exact order of the 6 selected categories):
+  // Select exactly 5 questions: 2 Easy, 2 Medium, 1 Hard.
+  const categoryQuestions = categories.flatMap((category) => {
     const categoryRows = questionRows.filter(
-      (question) => question.category_id === category.id
+      (question) =>
+        question.category_id === category.id && question.is_active !== false,
     );
 
-    let position = 0;
-    return DIFFICULTY_TIERS.flatMap((difficulty) => {
-      const tierRows = shuffle(
-        categoryRows.filter((question) => question.difficulty === difficulty)
-      ).slice(0, 2);
+    const easy = shuffle(categoryRows.filter((q) => q.difficulty === "easy"));
+    const medium = shuffle(
+      categoryRows.filter((q) => q.difficulty === "medium"),
+    );
+    const hard = shuffle(categoryRows.filter((q) => q.difficulty === "hard"));
 
-      return tierRows.map((question) => {
-        position += 1;
-        return normalizeQuestionRow({ ...question, position }, category);
-      });
+    const pickedEasy: any[] = [];
+    while (easy.length > 0 && pickedEasy.length < 2) {
+      pickedEasy.push(easy.pop());
+    }
+
+    const pickedMedium: any[] = [];
+    while (medium.length > 0 && pickedMedium.length < 2) {
+      pickedMedium.push(medium.pop());
+    }
+
+    const pickedHard: any[] = [];
+    while (hard.length > 0 && pickedHard.length < 1) {
+      pickedHard.push(hard.pop());
+    }
+
+    // Fallbacks if any tier is short within the category
+    const chosenIds = new Set([
+      ...pickedEasy.map((q) => q.id),
+      ...pickedMedium.map((q) => q.id),
+      ...pickedHard.map((q) => q.id),
+    ]);
+    const remaining = shuffle(categoryRows.filter((q) => !chosenIds.has(q.id)));
+
+    while (pickedEasy.length < 2 && remaining.length > 0) {
+      pickedEasy.push(remaining.pop());
+    }
+    while (pickedMedium.length < 2 && remaining.length > 0) {
+      pickedMedium.push(remaining.pop());
+    }
+    while (pickedHard.length < 1 && remaining.length > 0) {
+      pickedHard.push(remaining.pop());
+    }
+
+    // Global pool fallbacks if category itself has fewer than 5 questions in question_bank
+    if (pickedEasy.length + pickedMedium.length + pickedHard.length < 5) {
+      const poolEasy = shuffle(
+        questionRows.filter(
+          (q) =>
+            q.difficulty === "easy" &&
+            !chosenIds.has(q.id) &&
+            q.is_active !== false,
+        ),
+      );
+      while (pickedEasy.length < 2 && poolEasy.length > 0) {
+        const q = poolEasy.pop()!;
+        chosenIds.add(q.id);
+        pickedEasy.push({
+          ...q,
+          category_id: category.id,
+          category_name: category.name,
+        });
+      }
+
+      const poolMedium = shuffle(
+        questionRows.filter(
+          (q) =>
+            q.difficulty === "medium" &&
+            !chosenIds.has(q.id) &&
+            q.is_active !== false,
+        ),
+      );
+      while (pickedMedium.length < 2 && poolMedium.length > 0) {
+        const q = poolMedium.pop()!;
+        chosenIds.add(q.id);
+        pickedMedium.push({
+          ...q,
+          category_id: category.id,
+          category_name: category.name,
+        });
+      }
+
+      const poolHard = shuffle(
+        questionRows.filter(
+          (q) =>
+            q.difficulty === "hard" &&
+            !chosenIds.has(q.id) &&
+            q.is_active !== false,
+        ),
+      );
+      while (pickedHard.length < 1 && poolHard.length > 0) {
+        const q = poolHard.pop()!;
+        chosenIds.add(q.id);
+        pickedHard.push({
+          ...q,
+          category_id: category.id,
+          category_name: category.name,
+        });
+      }
+
+      const anyPool = shuffle(
+        questionRows.filter(
+          (q) => !chosenIds.has(q.id) && q.is_active !== false,
+        ),
+      );
+      while (pickedEasy.length < 2 && anyPool.length > 0) {
+        const q = anyPool.pop()!;
+        chosenIds.add(q.id);
+        pickedEasy.push({
+          ...q,
+          difficulty: "easy",
+          category_id: category.id,
+          category_name: category.name,
+        });
+      }
+      while (pickedMedium.length < 2 && anyPool.length > 0) {
+        const q = anyPool.pop()!;
+        chosenIds.add(q.id);
+        pickedMedium.push({
+          ...q,
+          difficulty: "medium",
+          category_id: category.id,
+          category_name: category.name,
+        });
+      }
+      while (pickedHard.length < 1 && anyPool.length > 0) {
+        const q = anyPool.pop()!;
+        chosenIds.add(q.id);
+        pickedHard.push({
+          ...q,
+          difficulty: "hard",
+          category_id: category.id,
+          category_name: category.name,
+        });
+      }
+    }
+
+    // Assemble strictly in required order: 2 Easy (pos 1, 2), 2 Medium (pos 3, 4), 1 Hard (pos 5)
+    const ordered = [...pickedEasy, ...pickedMedium, ...pickedHard];
+    let pos = 0;
+    return ordered.map((question) => {
+      pos += 1;
+      return normalizeQuestionRow({ ...question, position: pos }, category);
     });
   });
+
+  return categoryQuestions;
+};
 
 const CATEGORY_COLUMNS = "id,name,description,image_url,sort_order,is_active";
 
@@ -228,7 +359,7 @@ const fetchActiveQuestions = async (supabase: SupabaseClient) => {
   const testFirst = await fetchPage(
     `${QUESTION_BANK_COLUMNS},show_question_first`,
     0,
-    0
+    0,
   );
   const useOption =
     !testFirst.error ||
@@ -257,7 +388,7 @@ const fetchActiveQuestions = async (supabase: SupabaseClient) => {
 };
 
 export const loadQuestionSetupData = async (
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
 ): Promise<{
   categories: QuestionCategory[];
   groups: QuestionCategoryGroup[];
@@ -282,7 +413,7 @@ export const loadQuestionSetupData = async (
   }
 
   const groupMap = new Map<string, string>(
-    (groupsResult.data || []).map((g: any) => [g.id, g.name])
+    (groupsResult.data || []).map((g: any) => [g.id, g.name]),
   );
   const categories: QuestionCategory[] = (categoriesResult.data || []).map(
     (category: any) => ({
@@ -291,8 +422,10 @@ export const loadQuestionSetupData = async (
       desc: category.description,
       image_url: category.image_url || "",
       group_id: category.group_id || null,
-      group_name: category.group_id ? groupMap.get(category.group_id) || "" : "",
-    })
+      group_name: category.group_id
+        ? groupMap.get(category.group_id) || ""
+        : "",
+    }),
   );
 
   if (!categories.length) {

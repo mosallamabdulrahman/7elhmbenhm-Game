@@ -34,6 +34,7 @@ export interface Team {
   room_id: string;
   team_index: number;
   name: string;
+  color?: string;
   score: number;
   points?: number;
   available_strikes: number;
@@ -89,6 +90,8 @@ export interface Question {
   is_active?: boolean;
   is_used?: boolean;
   position?: number;
+  awarded_team_index?: number | null;
+  selected_by_team?: number | null;
 }
 
 export interface CombatEvent {

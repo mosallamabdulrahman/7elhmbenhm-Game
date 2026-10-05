@@ -3,28 +3,34 @@
 @theme {
   --font-sans: var(--font-cairo), "Cairo", system-ui, -apple-system, sans-serif;
 
-  /* 9 Core Brand Colors from Logo Color Palette */
-  --color-primary-blue: #1F9FF6;
-  --color-depth-blue: #0F74C5;
-  --color-dark-blue: #085BA0;
-  --color-lime-green: #C2E581;
-  --color-olive-green: #6F9050;
-  --color-soft-white: #F2F2F2;
-  --color-dark-slate: #20414B;
-  --color-support-blue: #60A9CE;
-  --color-support-green: #B4D7AC;
+  /* Official Brand Colors */
+  --color-primary-green: #44C530;
+  --color-brand-green: #44C530;
+  --color-brand-navy: #0B2D4D;
+  --color-brand-sky: #67C3FF;
+  --color-brand-white: #FFFFFF;
+
+  /* Legacy mappings mapped to new brand identity */
+  --color-primary-blue: #44C530;
+  --color-depth-blue: #0B2D4D;
+  --color-dark-blue: #0B2D4D;
+  --color-lime-green: #44C530;
+  --color-olive-green: #0B2D4D;
+  --color-soft-white: #FFFFFF;
+  --color-dark-slate: #0B2D4D;
+  --color-support-blue: #67C3FF;
+  --color-support-green: #44C530;
 }
 
 :root {
-  --primary-blue: #1F9FF6;
-  --depth-blue: #0F74C5;
-  --dark-blue: #085BA0;
-  --lime-green: #C2E581;
-  --olive-green: #6F9050;
-  --soft-white: #F2F2F2;
-  --dark-slate: #20414B;
-  --support-blue: #60A9CE;
-  --support-green: #B4D7AC;
+  --primary-green: #44C530;
+  --brand-green: #44C530;
+  --brand-navy: #0B2D4D;
+  --brand-sky: #67C3FF;
+  --primary-blue: #44C530;
+  --depth-blue: #0B2D4D;
+  --dark-blue: #0B2D4D;
+  --support-blue: #67C3FF;
   font-family:
     var(--font-cairo),
     "Cairo",

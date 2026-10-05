@@ -9,7 +9,7 @@ import {
   UNIT_SPECS,
 } from "@/components/battle/battle-constants";
 import { useBattleStore } from "@/stores/useBattleStore";
-import type { CombatEvent } from "@/types/game";
+import type { CombatEvent, Question } from "@/types/game";
 
 interface UseBattleActionsOptions {
   loadDatabaseData: () => Promise<void>;
@@ -26,6 +26,7 @@ export function useBattleActions({ loadDatabaseData, showAlert }: UseBattleActio
     teamLinkTokens,
     room,
     teams,
+    questions,
     selectedUnit,
     isAutoFilling,
     setTeams,
@@ -58,6 +59,10 @@ export function useBattleActions({ loadDatabaseData, showAlert }: UseBattleActio
   );
 
   const finalizeRoomIfComplete = useCallback(async () => {
+    const remainingUnused = questions.filter((q) => !q.is_used).length;
+    if (remainingUnused > 1) {
+      return;
+    }
     const { error } = await supabase.rpc("finalize_room_if_complete", { p_room_id: roomId });
     if (error) {
       const message = error.message || "";
@@ -67,7 +72,7 @@ export function useBattleActions({ loadDatabaseData, showAlert }: UseBattleActio
         error.code === "42501";
       if (!canIgnore) throw error;
     }
-  }, [roomId]);
+  }, [roomId, questions]);
 
   // Deploy or remove unit on grid cell click
   const handleCellClick = useCallback(
@@ -302,10 +307,6 @@ export function useBattleActions({ loadDatabaseData, showAlert }: UseBattleActio
   const handleSelectQuestion = useCallback(
     (question: any) =>
       runAction(async () => {
-        const notReadyTeam = teams.find((t) => !t.is_ready);
-        if (notReadyTeam) {
-          throw new Error(`ما تقدر تختار السؤال — ${notReadyTeam.name} للحين ما وزع جنوده.`);
-        }
         const { error } = await supabase.rpc("select_room_question", {
           p_room_id: roomId,
           p_question_id: question.id,
@@ -313,10 +314,10 @@ export function useBattleActions({ loadDatabaseData, showAlert }: UseBattleActio
         });
         if (error) throw error;
       }),
-    [teams, roomId, role, teamIndex, runAction],
+    [roomId, role, teamIndex, runAction],
   );
 
-  // Referee question resolution
+  // Referee question resolution (1 point to winning team)
   const handleResolveQuestion = useCallback(
     (questionId: string, winnerTeamIndex: number | null) =>
       runAction(async () => {
@@ -326,22 +327,24 @@ export function useBattleActions({ loadDatabaseData, showAlert }: UseBattleActio
           p_winner_team_index: winnerTeamIndex,
         });
         if (error) throw error;
+
         await finalizeRoomIfComplete();
         setActiveAnswer({ text: "", imageUrl: "" });
       }),
     [roomId, finalizeRoomIfComplete, setActiveAnswer, runAction],
   );
 
-  // Draw resolution: both teams win strike
+  // Draw resolution: 0 points awarded (no winner)
   const handleResolveDraw = useCallback(
     (questionId: string) =>
       runAction(async () => {
         const { error } = await supabase.rpc("resolve_room_question", {
           p_room_id: roomId,
           p_question_id: questionId,
-          p_winner_team_index: 0,
+          p_winner_team_index: null,
         });
         if (error) throw error;
+
         await finalizeRoomIfComplete();
         setActiveAnswer({ text: "", imageUrl: "" });
       }),

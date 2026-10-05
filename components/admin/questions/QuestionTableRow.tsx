@@ -348,7 +348,7 @@ export function QuestionTableRow({
             title="مدة مؤقت السؤال بالثواني"
           >
             <Timer className="w-3 h-3 text-cyan-600" />
-            {q.timer_seconds || 60}ث
+            {q.timer_seconds || 30}ث
           </span>
         </div>
       </td>

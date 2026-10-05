@@ -28,13 +28,13 @@ export function QuestionPreviewModal({
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
 
   // Timer simulation
-  const initialSeconds = Number(question?.timer_seconds) || 60;
+  const initialSeconds = 30;
   const [seconds, setSeconds] = useState(initialSeconds);
   const [isPaused, setIsPaused] = useState(false);
 
   // Reset timer on question change
   useEffect(() => {
-    setSeconds(Number(question?.timer_seconds) || 60);
+    setSeconds(30);
     setIsPaused(false);
     setStep("question");
     setMediaRevealed(false);

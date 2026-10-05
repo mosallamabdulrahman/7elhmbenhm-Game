@@ -56,9 +56,7 @@ export default function Header() {
       }`}
     >
       {/* Sky-Blue Soft Gradient above/behind the header matching Image 2 */}
-      <div
-        className="absolute inset-x-0 top-0 h-32 sm:h-36 bg-gradient-to-b from-[#CFEBFE] via-[#E4F3FE]/70 to-transparent pointer-events-none -z-10"
-      />
+      <div className="absolute inset-x-0 top-0 h-32 sm:h-36 bg-gradient-to-b from-[#CFEBFE] via-[#E4F3FE]/70 to-transparent pointer-events-none -z-10" />
 
       <div className="max-w-9xl mx-auto pointer-events-auto">
         {/* Floating White Pill Capsule matching brand styling */}
@@ -81,7 +79,7 @@ export default function Header() {
               {/* Active Home Pill */}
               <Link
                 href="/#hero"
-                className="bg-[var(--color-primary-blue)] hover:bg-[var(--color-depth-blue)] text-white px-4 py-1.5 rounded-full flex items-center gap-1.5 font-bold text-sm shadow-xs transition-all shrink-0"
+                className="bg-[#44C530] hover:bg-[#3bb328] text-white px-4 py-1.5 rounded-full flex items-center gap-1.5 font-bold text-sm shadow-xs transition-all shrink-0"
               >
                 <Home className="w-4 h-4" />
                 <span>الرئيسية</span>
@@ -98,9 +96,9 @@ export default function Header() {
                     />
                     <Link
                       href={link.href}
-                      className="group px-2.5 py-1.5 text-[#20414B] hover:text-[var(--color-primary-blue)] font-bold text-sm flex items-center gap-1.5 transition-colors shrink-0"
+                      className="group px-2.5 py-1.5 text-[#0B2D4D] hover:text-[#44C530] font-bold text-sm flex items-center gap-1.5 transition-colors shrink-0"
                     >
-                      <Icon className="w-4 h-4 text-[#60A9CE] group-hover:text-[var(--color-primary-blue)] transition-colors" />
+                      <Icon className="w-4 h-4 text-[#67C3FF] group-hover:text-[#44C530] transition-colors" />
                       <span>{link.name}</span>
                     </Link>
                   </React.Fragment>
@@ -117,13 +115,13 @@ export default function Header() {
               <div className="flex items-center gap-2 sm:gap-3">
                 <Link
                   href="/my-games"
-                  className="bg-[var(--color-primary-blue)] hover:bg-[var(--color-depth-blue)] text-white font-bold text-xs sm:text-sm px-3.5 sm:px-4 py-2 rounded-full flex items-center gap-1.5 shadow-xs transition-all"
+                  className="bg-[#44C530] hover:bg-[#3bb328] text-white font-bold text-xs sm:text-sm px-3.5 sm:px-4 py-2 rounded-full flex items-center gap-1.5 shadow-xs transition-all"
                 >
                   <History className="w-4 h-4" />
                   <span>ألعابي</span>
                 </Link>
-                <span className="hidden sm:flex items-center gap-1.5 text-[#20414B] font-bold text-xs sm:text-sm bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-full">
-                  <User className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" />
+                <span className="hidden sm:flex items-center gap-1.5 text-[#0B2D4D] font-bold text-xs sm:text-sm bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-full">
+                  <User className="w-3.5 h-3.5 text-[#44C530]" />
                   {getUserDisplayName(user)}
                 </span>
                 <button
@@ -138,19 +136,19 @@ export default function Header() {
               </div>
             ) : (
               <div className="flex items-center gap-2 sm:gap-3">
-                {/* Sign Up: Blue Pill Button */}
+                {/* Sign Up: Navy Pill Button */}
                 <Link
                   href="/login"
-                  className="hidden sm:flex items-center gap-1.5 bg-[var(--color-primary-blue)] hover:bg-[var(--color-depth-blue)] text-white font-bold text-xs sm:text-sm px-4 sm:px-5 py-2 rounded-full shadow-xs transition-all"
+                  className="hidden sm:flex items-center gap-1.5 bg-[#0B2D4D] hover:bg-[#071c30] text-white font-bold text-xs sm:text-sm px-4 sm:px-5 py-2 rounded-full shadow-xs transition-all"
                 >
                   <UserPlus className="w-4 h-4" />
                   <span>إنشاء حساب</span>
                 </Link>
 
-                {/* Login: 3D Green Pill Button */}
+                {/* Login: Brand Green Pill Button */}
                 <Link
                   href="/login"
-                  className="flex items-center gap-1.5 bg-[#70c922] hover:bg-[#64b51e] border-b-4 border-[#4f9514] active:border-b-0 active:translate-y-1 text-white font-bold text-xs sm:text-sm px-4 sm:px-6 py-1.5 rounded-full shadow-sm transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 bg-[#44C530] hover:bg-[#3bb328] border-b-4 border-[#319223] active:border-b-0 active:translate-y-1 text-white font-bold text-xs sm:text-sm px-4 sm:px-6 py-1.5 rounded-full shadow-sm transition-all cursor-pointer"
                 >
                   <User className="w-4 h-4" />
                   <span>دخول</span>
@@ -162,7 +160,7 @@ export default function Header() {
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="xl:hidden p-2 text-slate-600 hover:text-[var(--color-primary-blue)] hover:bg-slate-100 rounded-full transition-colors"
+              className="xl:hidden p-2 text-slate-600 hover:text-[#44C530] hover:bg-slate-100 rounded-full transition-colors"
               aria-label="القائمة"
             >
               {isMobileMenuOpen ? (
@@ -189,7 +187,7 @@ export default function Header() {
               <Link
                 href="/#hero"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center gap-2 font-bold text-[var(--color-primary-blue)] bg-blue-50 py-2.5 px-4 rounded-xl"
+                className="flex items-center gap-2 font-bold text-[#44C530] bg-emerald-50 py-2.5 px-4 rounded-xl"
               >
                 <Home className="w-4 h-4" />
                 <span>الرئيسية</span>
@@ -202,9 +200,9 @@ export default function Header() {
                     key={link.name}
                     href={link.href}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center gap-2 font-bold text-[#20414B] hover:text-[var(--color-primary-blue)] hover:bg-slate-50 py-2.5 px-4 rounded-xl transition-colors"
+                    className="flex items-center gap-2 font-bold text-[#0B2D4D] hover:text-[#44C530] hover:bg-slate-50 py-2.5 px-4 rounded-xl transition-colors"
                   >
-                    <Icon className="w-4 h-4 text-[#60A9CE]" />
+                    <Icon className="w-4 h-4 text-[#67C3FF]" />
                     <span>{link.name}</span>
                   </Link>
                 );
@@ -215,7 +213,7 @@ export default function Header() {
                   <Link
                     href="/login"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center justify-center gap-1.5 bg-[var(--color-primary-blue)] hover:bg-[var(--color-depth-blue)] text-white font-bold py-2.5 rounded-xl shadow-xs"
+                    className="flex items-center justify-center gap-1.5 bg-[#44C530] hover:bg-[#3bb328] text-white font-bold py-2.5 rounded-xl shadow-xs"
                   >
                     <UserPlus className="w-4 h-4" />
                     <span>إنشاء حساب</span>

@@ -50,25 +50,19 @@ export function ActiveQuestionView({
   onPickWinner,
   onExpandImage,
 }: ActiveQuestionViewProps) {
-  if (!activeQuestion) return null;
-
-  // "ظهور الميديا أولاً" (Media First Option):
-  // If activeQuestion.show_question_first is true and activeQuestion.media_url is present,
-  // show media first, hide question text, count down for image_duration seconds.
-  // Once the duration is over, hide media, show question text, and resume normal question flow.
   const isMediaFirst = Boolean(
-    activeQuestion.show_question_first && activeQuestion.media_url,
+    activeQuestion?.show_question_first && activeQuestion?.media_url,
   );
   const mediaDuration =
-    Number(activeQuestion.image_duration) > 0
+    Number(activeQuestion?.image_duration) > 0
       ? Number(activeQuestion.image_duration)
       : 5;
 
-  const [mediaPhaseActive, setMediaPhaseActive] = useState(() => isMediaFirst);
-  const [mediaCountdown, setMediaCountdown] = useState(() => mediaDuration);
+  const [mediaPhaseActive, setMediaPhaseActive] = useState(false);
+  const [mediaCountdown, setMediaCountdown] = useState(5);
 
   useEffect(() => {
-    if (!isMediaFirst) {
+    if (!isMediaFirst || !activeQuestion) {
       setMediaPhaseActive(false);
       return;
     }
@@ -87,7 +81,9 @@ export function ActiveQuestionView({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [activeQuestion.id, isMediaFirst, mediaDuration]);
+  }, [activeQuestion?.id, isMediaFirst, mediaDuration]);
+
+  if (!activeQuestion) return null;
 
   const isWlaKelma =
     activeQuestion.category_name === "ولا كلمة" ||
@@ -331,21 +327,25 @@ export function ActiveQuestionView({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -16 }}
           transition={{ duration: 0.25 }}
-          className="relative mx-auto rounded-[2rem] sm:rounded-[2.5rem] border-4 border-[#0F74C5] text-white bg-white pt-10 sm:pt-14 pb-14 sm:pb-16 px-6 sm:px-12 text-center shadow-2xl"
+          className="relative mx-auto rounded-[2rem] sm:rounded-[2.5rem] border-4 border-[#0B2D4D] text-white bg-white pt-10 sm:pt-14 pb-14 sm:pb-16 px-6 sm:px-12 text-center shadow-2xl"
         >
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-950 mb-8 sm:mb-10">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#0B2D4D] mb-8 sm:mb-10">
             أي فريق جاوب صح ؟
           </h2>
 
           <div className="max-w-xl mx-auto flex flex-col gap-4 sm:gap-5">
             <div className="grid grid-cols-2 gap-4 sm:gap-6">
-              {teams.map((team) => (
+              {teams.map((team, idx) => (
                 <button
                   key={team.id}
                   type="button"
                   disabled={isBusy}
                   onClick={() => onPickWinner(team.team_index)}
-                  className="rounded-full py-4 sm:py-5 px-4 text-sm sm:text-lg font-bold text-white shadow-lg hover:shadow-xl transition active:scale-95 disabled:opacity-60 bg-gradient-to-r from-[#0F74C5] to-[#1F9FF6] text-white cursor-pointer"
+                  className={`rounded-full py-4 sm:py-5 px-4 text-sm sm:text-lg font-bold text-white shadow-lg hover:shadow-xl transition active:scale-95 disabled:opacity-60 ${
+                    idx === 0
+                      ? "bg-[#44C530] hover:bg-[#3bb328]"
+                      : "bg-[#0B2D4D] hover:bg-[#071c30]"
+                  } cursor-pointer`}
                 >
                   {team.name}
                 </button>
@@ -356,9 +356,9 @@ export function ActiveQuestionView({
               type="button"
               disabled={isBusy}
               onClick={() => onPickWinner("none")}
-              className="w-full rounded-full bg-slate-500 hover:bg-slate-600 py-4 sm:py-5 text-sm sm:text-lg font-bold text-white shadow-lg transition active:scale-95 disabled:opacity-60 cursor-pointer"
+              className="w-full rounded-full bg-slate-400 hover:bg-slate-500 py-3.5 sm:py-4 text-sm sm:text-base font-bold text-white shadow-md transition active:scale-95 disabled:opacity-60 cursor-pointer"
             >
-              ولا أحد
+              ولا أحد (تعادل / بدون فائز)
             </button>
           </div>
 
@@ -366,7 +366,7 @@ export function ActiveQuestionView({
           <button
             type="button"
             onClick={onBackToAnswer}
-            className="absolute -bottom-4 sm:-bottom-5 left-4 sm:left-8 z-20 rounded-full bg-emerald-900 hover:bg-emerald-950 px-5 sm:px-7 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-white shadow-lg transition active:scale-95 cursor-pointer"
+            className="absolute -bottom-4 sm:-bottom-5 left-4 sm:left-8 z-20 rounded-full bg-[#0B2D4D] hover:bg-[#071c30] px-5 sm:px-7 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-white shadow-lg transition active:scale-95 cursor-pointer"
           >
             العودة للإجابة
           </button>

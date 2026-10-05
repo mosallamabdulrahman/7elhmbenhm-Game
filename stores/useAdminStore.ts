@@ -613,7 +613,7 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
             : null,
         answer_image_url: form.answer_image_url?.trim() || null,
         show_question_first: showQuestionFirst,
-        timer_seconds: form.timer_seconds ? Number(form.timer_seconds) : 60,
+        timer_seconds: 30,
       };
 
       try {

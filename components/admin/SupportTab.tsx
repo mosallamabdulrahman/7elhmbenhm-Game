@@ -353,7 +353,7 @@ export default function SupportTab(props: SupportTabProps) {
                         {msg.sender_email && (
                           <a
                             href={`mailto:${msg.sender_email}`}
-                            className="text-[10px] text-cyan-600 hover:underline font-mono"
+                            className="text-[10px] text-cyan-600 hover:underline tracking-tight"
                             title="إرسال بريد إلكتروني"
                             onClick={(e) => e.stopPropagation()}
                           >
@@ -509,7 +509,7 @@ export default function SupportTab(props: SupportTabProps) {
                     {previewMsg.sender_email && (
                       <a
                         href={`mailto:${previewMsg.sender_email}`}
-                        className="text-cyan-600 hover:underline block font-mono text-[11px] mt-0.5"
+                        className="text-cyan-600 hover:underline block tracking-tight text-[11px] mt-0.5"
                       >
                         {previewMsg.sender_email}
                       </a>
@@ -538,7 +538,7 @@ export default function SupportTab(props: SupportTabProps) {
                       <span className="text-slate-400 block mb-0.5">
                         معرف الغرفة:
                       </span>
-                      <span className="font-mono font-bold text-slate-800 break-all select-all">
+                      <span className="tracking-tight font-bold text-slate-800 break-all select-all">
                         {previewMsg.room_id}
                       </span>
                     </div>

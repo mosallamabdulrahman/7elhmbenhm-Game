@@ -88,15 +88,15 @@ export default function PaymentGateSection() {
       <div className="max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Heading */}
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="text-[var(--color-primary-blue)] font-bold text-sm uppercase tracking-wider bg-cyan-100 px-4 py-1.5 rounded-full inline-block mb-4">
-            شحن النقاط والتسليح 💳
+          <span className="text-[#0B2D4D] font-bold text-sm uppercase tracking-wider bg-[#67C3FF]/20 border border-[#67C3FF]/30 px-4 py-1.5 rounded-full inline-block mb-4">
+            شحن النقاط والباقات 💳
           </span>
           <h2 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight">
             طرق الشحن وباقات النقاط السريعة
           </h2>
           <p className="text-slate-600 mt-4 text-base md:text-lg">
-            اشحن نقاطك وسلّح فريقك سيدة وبكل أمان! اختر الباقة اللي تناسب
-            ديوانيتكم وابدأ اللعب والطق فوراً.
+            اشحن نقاطك وفعل باقتك بكل أمان! اختر الباقة اللي تناسب
+            جمعتكم وابدأ اللعب والتحدي فوراً.
           </p>
         </div>
 
@@ -109,7 +109,7 @@ export default function PaymentGateSection() {
               className={`bg-white rounded-3xl border ${pkg.borderColor} p-8 shadow-sm flex flex-col relative transition-all duration-300`}
             >
               {pkg.tag && (
-                <span className="absolute -top-3.5 right-6 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-full shadow-md">
+                <span className="absolute -top-3.5 right-6 bg-gradient-to-r from-emerald-500 to-green-600 text-white font-bold text-xs px-3.5 py-1.5 rounded-full shadow-md">
                   {pkg.tag}
                 </span>
               )}
@@ -140,7 +140,7 @@ export default function PaymentGateSection() {
                   </span>
                 </span>
                 <div className="h-px bg-slate-200/60 my-3" />
-                <span className="text-xl font-bold text-[var(--color-primary-blue)] block">
+                <span className="text-xl font-bold text-[#44C530] block">
                   {pkg.price}
                 </span>
               </div>

@@ -53,7 +53,11 @@ interface TimedImageProps {
   onImageClick?: ((url: string) => void) | null;
 }
 
-function TimedImage({ mediaUrl, durationSeconds, onImageClick }: TimedImageProps) {
+function TimedImage({
+  mediaUrl,
+  durationSeconds,
+  onImageClick,
+}: TimedImageProps) {
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
@@ -98,7 +102,11 @@ interface LimitedPlaybackMediaProps {
   maxPlays: number;
 }
 
-function LimitedPlaybackMedia({ mediaUrl, mediaType, maxPlays }: LimitedPlaybackMediaProps) {
+function LimitedPlaybackMedia({
+  mediaUrl,
+  mediaType,
+  maxPlays,
+}: LimitedPlaybackMediaProps) {
   const mediaRef = useRef<HTMLMediaElement | null>(null);
   const [playsUsed, setPlaysUsed] = useState(0);
 
@@ -251,7 +259,7 @@ export function FinishedCelebration({
     <motion.div
       initial={{ opacity: 0, y: 18, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      className="relative overflow-hidden rounded-[2rem] border border-amber-300 bg-gradient-to-br from-slate-950 via-cyan-950 to-slate-900 p-8 text-center text-white shadow-2xl"
+      className="relative overflow-hidden w-[96%] rounded-[2rem] border border-amber-300 bg-gradient-to-br from-slate-950 via-cyan-950 to-slate-900 p-8 text-center text-white shadow-2xl"
     >
       {/* Confetti dots */}
       <div className="absolute inset-0 opacity-25">
@@ -312,7 +320,13 @@ export function FinishedCelebration({
   );
 }
 
-export function AnimatedNumber({ value, className }: { value: any; className?: string }) {
+export function AnimatedNumber({
+  value,
+  className,
+}: {
+  value: any;
+  className?: string;
+}) {
   return (
     <AnimatePresence mode="wait">
       <motion.span
@@ -614,76 +628,82 @@ export function QuestionGrid({
   disabled = false,
   onSelect,
 }: QuestionGridProps) {
-  const categories = questions.reduce((groups: Record<string, any>, question: any) => {
-    if (!groups[question.category_id]) {
-      groups[question.category_id] = {
-        name: question.category_name,
-        imageUrl: question.category_image_url || question.category_image || "",
-        questions: [],
-      };
-    }
-    groups[question.category_id].questions.push(question);
-    return groups;
-  }, {});
+  const categories = questions.reduce(
+    (groups: Record<string, any>, question: any) => {
+      if (!groups[question.category_id]) {
+        groups[question.category_id] = {
+          name: question.category_name,
+          imageUrl:
+            question.category_image_url || question.category_image || "",
+          questions: [],
+        };
+      }
+      groups[question.category_id].questions.push(question);
+      return groups;
+    },
+    {},
+  );
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 xs:gap-2.5 sm:gap-4 md:gap-6">
-      {Object.entries(categories).map(([categoryId, category]: [string, any]) => {
-        const rows = DIFFICULTY_ROW_ORDER.map((difficulty) =>
-          category.questions
-            .filter((q: any) => q.difficulty === difficulty)
-            .sort((a: any, b: any) => a.position - b.position)
-            .slice(0, 2),
-        );
+      {Object.entries(categories).map(
+        ([categoryId, category]: [string, any]) => {
+          const rows = DIFFICULTY_ROW_ORDER.map((difficulty) =>
+            category.questions
+              .filter((q: any) => q.difficulty === difficulty)
+              .sort((a: any, b: any) => a.position - b.position)
+              .slice(0, 2),
+          );
 
-        return (
-          <section key={categoryId} className="flex min-w-0">
-            <div className="flex-1 flex flex-col justify-between gap-1 sm:gap-2.5 min-w-0">
-              {rows.map(([rightQuestion], row) => (
-                <QuestionSlotButton
-                  key={`right-${row}`}
-                  question={rightQuestion}
-                  difficulty={DIFFICULTY_ROW_ORDER[row]}
-                  side="right"
-                  row={row}
-                  activeQuestionId={activeQuestionId}
-                  disabled={disabled}
-                  onSelect={onSelect}
-                />
-              ))}
-            </div>
-
-            <div className="w-14 xs:w-16 sm:w-22 md:w-38 lg:w-40 shrink-0 relative bg-cyan-50 flex flex-col justify-end overflow-hidden">
-              <img
-                src={category.imageUrl || FALLBACK_CATEGORY_IMAGE}
-                alt={category.name}
-                className="absolute inset-0 h-full w-full object-cover"
-                loading="lazy"
-              />
-              <div className="relative z-10 bg-cyan-700/95 px-1 sm:px-2 py-1.5 sm:py-2.5 min-h-[28px] sm:min-h-[36px] flex items-center justify-center text-center">
-                <h3 className="font-bold text-white text-[10px] xs:text-[11px] sm:text-xs md:text-sm truncate">
-                  {category.name}
-                </h3>
+          return (
+            <section key={categoryId} className="flex min-w-0">
+              <div className="flex-1 flex flex-col justify-between gap-1 sm:gap-2.5 min-w-0">
+                {rows.map(([rightQuestion], row) => (
+                  <QuestionSlotButton
+                    key={`right-${row}`}
+                    question={rightQuestion}
+                    difficulty={DIFFICULTY_ROW_ORDER[row]}
+                    side="right"
+                    row={row}
+                    activeQuestionId={activeQuestionId}
+                    disabled={disabled}
+                    onSelect={onSelect}
+                  />
+                ))}
               </div>
-            </div>
 
-            <div className="flex-1 flex flex-col justify-between gap-1 sm:gap-2.5 min-w-0">
-              {rows.map(([, leftQuestion], row) => (
-                <QuestionSlotButton
-                  key={`left-${row}`}
-                  question={leftQuestion}
-                  difficulty={DIFFICULTY_ROW_ORDER[row]}
-                  side="left"
-                  row={row}
-                  activeQuestionId={activeQuestionId}
-                  disabled={disabled}
-                  onSelect={onSelect}
+              <div className="w-14 xs:w-16 sm:w-22 md:w-38 lg:w-40 shrink-0 relative bg-cyan-50 flex flex-col justify-end overflow-hidden">
+                <img
+                  src={category.imageUrl || FALLBACK_CATEGORY_IMAGE}
+                  alt={category.name}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  loading="lazy"
                 />
-              ))}
-            </div>
-          </section>
-        );
-      })}
+                <div className="relative z-10 bg-cyan-700/95 px-1 sm:px-2 py-1.5 sm:py-2.5 min-h-[28px] sm:min-h-[36px] flex items-center justify-center text-center">
+                  <h3 className="font-bold text-white text-[10px] xs:text-[11px] sm:text-xs md:text-sm truncate">
+                    {category.name}
+                  </h3>
+                </div>
+              </div>
+
+              <div className="flex-1 flex flex-col justify-between gap-1 sm:gap-2.5 min-w-0">
+                {rows.map(([, leftQuestion], row) => (
+                  <QuestionSlotButton
+                    key={`left-${row}`}
+                    question={leftQuestion}
+                    difficulty={DIFFICULTY_ROW_ORDER[row]}
+                    side="left"
+                    row={row}
+                    activeQuestionId={activeQuestionId}
+                    disabled={disabled}
+                    onSelect={onSelect}
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        },
+      )}
     </div>
   );
 }
@@ -735,7 +755,13 @@ export function EventFeed({ events }: { events: any[] }) {
   );
 }
 
-export function AbandonedGameView({ room, onReturnHome }: { room: any; onReturnHome: () => void }) {
+export function AbandonedGameView({
+  room,
+  onReturnHome,
+}: {
+  room: any;
+  onReturnHome: () => void;
+}) {
   const actor =
     room.abandoned_by === "referee"
       ? "الحكم"
@@ -769,7 +795,11 @@ interface CombatEventModalProps {
   autoCloseMs?: number;
 }
 
-export function CombatEventModal({ event, onClose, autoCloseMs = 2000 }: CombatEventModalProps) {
+export function CombatEventModal({
+  event,
+  onClose,
+  autoCloseMs = 2000,
+}: CombatEventModalProps) {
   useEffect(() => {
     if (!event || event.event_type !== "strike") return undefined;
     const timeout = window.setTimeout(onClose, autoCloseMs);
@@ -839,7 +869,13 @@ export function CombatEventModal({ event, onClose, autoCloseMs = 2000 }: CombatE
   );
 }
 
-export function ImageModal({ imageUrl, onClose }: { imageUrl?: string | null; onClose: () => void }) {
+export function ImageModal({
+  imageUrl,
+  onClose,
+}: {
+  imageUrl?: string | null;
+  onClose: () => void;
+}) {
   if (!imageUrl) return null;
 
   return (

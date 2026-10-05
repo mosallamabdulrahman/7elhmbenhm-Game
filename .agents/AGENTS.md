@@ -18,3 +18,4 @@
 - **Development Server (`npm run dev`)**: Always inform the user explicitly if stopping and restarting `npm run dev` is required (for example, when updating `.env.local` files, installing new packages, or when hot-reloading needs a fresh server start).
 - **Git & GitHub Commits/Push**: NEVER run `git push` or push changes to GitHub. The user will handle all Git pushes themselves.
 - **Restricted Tailwind Classes**: NEVER use `font-black`, `font-extrabold`, or `font-mono` classes in any generated code, components, or UI suggestions unless the user explicitly includes or requests them first.
+- **Mandatory Post-Execution Testing**: After implementing a new feature, fixing a bug, or executing any task, you must proactively test and verify the functionality of that specific game area or logic. Never submit unverified code; ensure it works flawlessly so the user does not have to discover broken features during manual testing.

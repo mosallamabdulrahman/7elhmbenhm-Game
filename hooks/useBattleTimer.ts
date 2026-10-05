@@ -26,9 +26,7 @@ export function useBattleTimer() {
   useEffect(() => {
     const currentQuestionId = room?.active_question_id || null;
     const previousQuestionId = lastActiveQuestionIdRef.current;
-    const currentQ = (questions || []).find((q) => q.id === currentQuestionId);
-    const qSeconds =
-      Number(currentQ?.timer_seconds) > 0 ? Number(currentQ?.timer_seconds) : 60;
+    const qSeconds = 30;
 
     if (currentQuestionId && currentQuestionId !== previousQuestionId) {
       setQuestionSeconds(qSeconds);
@@ -37,7 +35,7 @@ export function useBattleTimer() {
     }
 
     if (previousQuestionId && !currentQuestionId) {
-      setQuestionSeconds(60);
+      setQuestionSeconds(30);
       setTimerPaused(false);
       setTimerOverrideStart(null);
       questionStartedAtRef.current = null;
@@ -57,8 +55,7 @@ export function useBattleTimer() {
       return undefined;
     }
 
-    const currentQ = (questions || []).find((q) => q.id === room.active_question_id);
-    const totalSeconds = Number(currentQ?.timer_seconds) > 0 ? Number(currentQ?.timer_seconds) : 60;
+    const totalSeconds = 30;
     const startedAt = timerOverrideStart ?? new Date(room.question_started_at).getTime();
     let lastPlayedSecond: number | null = null;
 
@@ -91,9 +88,8 @@ export function useBattleTimer() {
   ]);
 
   const getActiveQuestionTimerSeconds = useCallback(() => {
-    const currentQ = (questions || []).find((q) => q.id === room?.active_question_id);
-    return Number(currentQ?.timer_seconds) > 0 ? Number(currentQ?.timer_seconds) : 60;
-  }, [questions, room?.active_question_id]);
+    return 30;
+  }, []);
 
   const handlePauseTimer = useCallback(() => setTimerPaused(true), [setTimerPaused]);
 

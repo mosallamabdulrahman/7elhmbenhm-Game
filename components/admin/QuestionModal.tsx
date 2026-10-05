@@ -169,11 +169,7 @@ export default function QuestionModal({
           ? question.category_id
           : categories[0]?.id || "",
         show_question_first: Boolean(question.show_question_first),
-        timer_seconds:
-          question.timer_seconds !== undefined &&
-          question.timer_seconds !== null
-            ? question.timer_seconds
-            : 60,
+        timer_seconds: 30,
       };
     }
     const targetCategoryId =
@@ -194,7 +190,7 @@ export default function QuestionModal({
       media_play_count: null,
       show_question_first: false,
       answer_image_url: "",
-      timer_seconds: 60,
+      timer_seconds: 30,
     };
   });
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
@@ -579,47 +575,6 @@ export default function QuestionModal({
                 onChange={(url) => set("answer_image_url", url)}
                 extra={
                   <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-                    {/* Timer field - accepts numbers only, defaults to 60 */}
-                    <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl shadow-2xs">
-                      <Timer className="w-4 h-4 text-cyan-600 shrink-0" />
-                      <label
-                        htmlFor="timer-seconds-input"
-                        className="text-xs font-bold text-slate-700 whitespace-nowrap"
-                      >
-                        المؤقت (ثانية):
-                      </label>
-                      <input
-                        id="timer-seconds-input"
-                        type="number"
-                        min="1"
-                        max="600"
-                        step="1"
-                        value={form.timer_seconds ?? 60}
-                        onChange={(e) => {
-                          const raw = e.target.value;
-                          if (raw === "") {
-                            set("timer_seconds", "");
-                          } else {
-                            const parsed = parseInt(raw, 10);
-                            set(
-                              "timer_seconds",
-                              isNaN(parsed) ? "" : Math.max(1, parsed),
-                            );
-                          }
-                        }}
-                        onBlur={() => {
-                          if (
-                            !form.timer_seconds ||
-                            Number(form.timer_seconds) < 1
-                          ) {
-                            set("timer_seconds", 60);
-                          }
-                        }}
-                        placeholder="60"
-                        className="w-16 px-2 py-1 text-center font-bold text-sm bg-white border border-slate-300 rounded-lg focus:border-cyan-500 focus:outline-none"
-                      />
-                    </div>
-
                     {/* Active toggle */}
                     <label className="flex items-center gap-2 cursor-pointer select-none bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl shadow-2xs hover:bg-slate-100 transition-colors">
                       <input
@@ -652,12 +607,7 @@ export default function QuestionModal({
                     form.answer_text?.trim() ||
                     "ولا كلمة"
                   : form.question_text.trim(),
-                timer_seconds:
-                  form.timer_seconds !== "" &&
-                  form.timer_seconds !== null &&
-                  Number(form.timer_seconds) > 0
-                    ? Number(form.timer_seconds)
-                    : 60,
+                timer_seconds: 30,
               };
               onSave(finalForm);
             }}

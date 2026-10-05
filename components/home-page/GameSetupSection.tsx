@@ -38,6 +38,10 @@ export default function GameSetupSection() {
     setTeam1Name,
     team2Name,
     setTeam2Name,
+    team1Color,
+    setTeam1Color,
+    team2Color,
+    setTeam2Color,
     teamTokens,
     setTeamTokens,
     toggleCategory,
@@ -143,13 +147,13 @@ export default function GameSetupSection() {
         onClick={() => toggleCategory(cat.id)}
         className={`rounded-2xl text-right flex flex-col relative overflow-hidden cursor-pointer transition-all ${
           isSelected
-            ? "border-4 border-amber-400 scale-[1.03]"
+            ? "border-4 border-[#44C530] scale-[1.03]"
             : "border-4 border-transparent hover:border-slate-200"
         }`}
       >
         {/* Selected Checkmark Badge */}
         {isSelected && (
-          <span className="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full bg-amber-400 text-amber-950 font-bold flex items-center justify-center shadow-md text-xs">
+          <span className="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full bg-[#44C530] text-white font-bold flex items-center justify-center shadow-md text-xs">
             ✓
           </span>
         )}
@@ -171,8 +175,8 @@ export default function GameSetupSection() {
         <span
           className={`py-2.5 sm:py-3 px-2 text-center w-full block transition-colors ${
             isSelected
-              ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white"
-              : "bg-gradient-to-r from-[var(--color-primary-blue)] to-[var(--color-depth-blue)] text-white"
+              ? "bg-[#44C530] text-white"
+              : "bg-[#0B2D4D] text-white"
           }`}
         >
           <span className="font-bold text-base sm:text-lg leading-tight block truncate">
@@ -256,7 +260,7 @@ export default function GameSetupSection() {
             <div id="categories" className="scroll-mt-24">
               <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-8">
                 <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-[var(--color-primary-blue)] text-white font-bold text-sm flex items-center justify-center">
+                  <span className="w-8 h-8 rounded-full bg-[#0B2D4D] text-white font-bold text-sm flex items-center justify-center">
                     ١
                   </span>
                   <div>
@@ -303,7 +307,7 @@ export default function GameSetupSection() {
               }
             >
               <div className="flex items-center gap-3 border-b border-slate-200 pb-4 mb-8">
-                <span className="w-8 h-8 rounded-full bg-[var(--color-primary-blue)] text-white font-bold text-sm flex items-center justify-center">
+                <span className="w-8 h-8 rounded-full bg-[#0B2D4D] text-white font-bold text-sm flex items-center justify-center">
                   ٢
                 </span>
                 <div>
@@ -347,8 +351,11 @@ export default function GameSetupSection() {
               >
                 {/* Team A */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm relative">
-                  <div className="absolute top-4 left-4 bg-cyan-500/10 text-cyan-600 px-3 py-1 rounded-full text-[10px] font-bold">
-                    الفريق الأزرق
+                  <div
+                    className="absolute top-4 left-4 px-3 py-1 rounded-full text-[10px] font-bold text-white shadow-xs"
+                    style={{ backgroundColor: team1Color }}
+                  >
+                    الفريق الأول
                   </div>
                   <label
                     htmlFor="team1"
@@ -365,15 +372,58 @@ export default function GameSetupSection() {
                     placeholder="مثال: كتيبة الفرسان"
                     className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm font-bold text-slate-800 focus:outline-none transition-all"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1 ml-1 font-semibold">
-                    راح يكون لونه أزرق باللعبة
-                  </p>
+                  {/* Team 1 Color Picker */}
+                  <div className="mt-3">
+                    <span className="block text-xs font-semibold text-slate-500 mb-1.5">
+                      اختر لون الفريق:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {[
+                        { id: "#2563EB", name: "أزرق ملكي", bg: "bg-blue-600" },
+                        { id: "#EF4444", name: "أحمر قرمزي", bg: "bg-rose-500" },
+                        { id: "#10B981", name: "أخضر زمردي", bg: "bg-emerald-500" },
+                        { id: "#F59E0B", name: "ذهبي كهرماني", bg: "bg-amber-500" },
+                        { id: "#8B5CF6", name: "بنفسجي", bg: "bg-purple-600" },
+                        { id: "#06B6D4", name: "سماوي بحري", bg: "bg-cyan-500" },
+                      ].map((col) => {
+                        const isSelected = team1Color === col.id;
+                        const isTakenByOther = team2Color === col.id;
+                        return (
+                          <button
+                            key={col.id}
+                            type="button"
+                            disabled={isTakenByOther}
+                            onClick={() => setTeam1Color(col.id)}
+                            title={
+                              isTakenByOther
+                                ? `${col.name} (مختار من الفريق الثاني)`
+                                : col.name
+                            }
+                            className={`w-7 h-7 rounded-full ${col.bg} transition-all duration-150 flex items-center justify-center ${
+                              isTakenByOther
+                                ? "opacity-25 cursor-not-allowed scale-90 ring-1 ring-slate-300"
+                                : isSelected
+                                  ? "ring-2 ring-offset-2 ring-slate-800 scale-110 shadow-md cursor-pointer"
+                                  : "opacity-80 hover:opacity-100 hover:scale-105 cursor-pointer"
+                            }`}
+                          >
+                            {isSelected && (
+                              <Check className="w-3.5 h-3.5 text-white stroke-[3]" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Team B */}
                 <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm relative">
-                  <div className="absolute top-4 left-4 bg-orange-500/10 text-orange-600 px-3 py-1 rounded-full text-[10px] font-bold">
-                    الفريق الأحمر
+                  <div
+                    className="absolute top-4 left-4 px-3 py-1 rounded-full text-[10px] font-bold text-white shadow-xs"
+                    style={{ backgroundColor: team2Color }}
+                  >
+                    الفريق الثاني
                   </div>
                   <label
                     htmlFor="team2"
@@ -390,40 +440,50 @@ export default function GameSetupSection() {
                     placeholder="مثال: صقور النخبة"
                     className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm font-bold text-slate-800 focus:outline-none transition-all"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1 ml-1 font-semibold">
-                    راح يكون لونه أحمر باللعبة
-                  </p>
+                  {/* Team 2 Color Picker */}
+                  <div className="mt-3">
+                    <span className="block text-xs font-semibold text-slate-500 mb-1.5">
+                      اختر لون الفريق:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {[
+                        { id: "#2563EB", name: "أزرق ملكي", bg: "bg-blue-600" },
+                        { id: "#EF4444", name: "أحمر قرمزي", bg: "bg-rose-500" },
+                        { id: "#10B981", name: "أخضر زمردي", bg: "bg-emerald-500" },
+                        { id: "#F59E0B", name: "ذهبي كهرماني", bg: "bg-amber-500" },
+                        { id: "#8B5CF6", name: "بنفسجي", bg: "bg-purple-600" },
+                        { id: "#06B6D4", name: "سماوي بحري", bg: "bg-cyan-500" },
+                      ].map((col) => {
+                        const isSelected = team2Color === col.id;
+                        const isTakenByOther = team1Color === col.id;
+                        return (
+                          <button
+                            key={col.id}
+                            type="button"
+                            disabled={isTakenByOther}
+                            onClick={() => setTeam2Color(col.id)}
+                            title={
+                              isTakenByOther
+                                ? `${col.name} (مختار من الفريق الأول)`
+                                : col.name
+                            }
+                            className={`w-7 h-7 rounded-full ${col.bg} transition-all duration-150 flex items-center justify-center ${
+                              isTakenByOther
+                                ? "opacity-25 cursor-not-allowed scale-90 ring-1 ring-slate-300"
+                                : isSelected
+                                  ? "ring-2 ring-offset-2 ring-slate-800 scale-110 shadow-md cursor-pointer"
+                                  : "opacity-80 hover:opacity-100 hover:scale-105 cursor-pointer"
+                            }`}
+                          >
+                            {isSelected && (
+                              <Check className="w-3.5 h-3.5 text-white stroke-[3]" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            {/* STEP 3: Fixed tools preview */}
-            <div
-              className={
-                selectedCategories.length === 6 ? "opacity-100" : "opacity-40"
-              }
-            >
-              <div className="flex items-center gap-3 border-b border-slate-200 pb-4 mb-8">
-                <span className="w-8 h-8 rounded-full bg-[var(--color-primary-blue)] text-white font-bold text-sm flex items-center justify-center">
-                  ٣
-                </span>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">
-                    الخطوة الثالثة: الفزعات والمساعدات
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    الفريقين راح يحصلون على نفس الفزعات، وما تقدرون تستخدمونها
-                    إلا لما يبدأ اللعب.
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-5 flex items-center gap-3">
-                <Zap className="w-5 h-5 text-cyan-600 shrink-0" />
-                <p className="text-xs font-bold text-cyan-900 leading-relaxed">
-                  كل فريق راح ياخذ 3 فزعات متساوية. الفزعات تكون مخشوشة وما
-                  تقدرون تستخدمونها إلا لما يبدأ اللعب والطق.
-                </p>
               </div>
             </div>
 
@@ -435,202 +495,23 @@ export default function GameSetupSection() {
                 whileTap={{ scale: 0.98 }}
                 onClick={handleStartGame}
                 disabled={isSubmitting}
-                className="inline-flex items-center gap-3 bg-gradient-to-r from-orange-400 via-orange-500 to-amber-500 text-white font-sans font-bold text-lg px-12 py-4 rounded-2xl shadow-xl shadow-orange-500/20 hover:shadow-orange-500/35 active:translate-y-0.5 transition-all cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-3 bg-[#44C530] hover:bg-[#3bb328] text-white font-sans font-bold text-lg px-12 py-4 rounded-2xl shadow-xl shadow-[#44C530]/25 hover:shadow-[#44C530]/40 active:translate-y-0.5 transition-all cursor-pointer disabled:opacity-50"
               >
                 <Play className="w-5 h-5 fill-white" />
-                {isSubmitting ? "قاعدين نجهز الغرفة..." : "ابدأ اللعب الحين"}
+                {isSubmitting ? "جارٍ بدء الغرفة..." : "بدء الغرفة"}
               </motion.button>
               <p className="text-xs text-slate-400 mt-3 font-semibold">
-                الغرفة راح تطلع لك QR كود عشان تمسحه وتلعب من تلفونك أو أي جهاز
-                ثاني
+                سيتم توجيهك مباشرة لشاشة الحكم واختيار الأسئلة بالتسلسل
               </p>
             </div>
           </div>
         ) : (
-          /* ROOM SUCCESSFULLY CREATED */
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white p-5 sm:p-7 md:p-8 rounded-3xl border border-slate-200 shadow-xl max-w-3xl mx-auto relative overflow-hidden"
-          >
-            {/* Success badge */}
-            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3.5 sm:p-4 rounded-2xl flex items-center justify-between gap-3 mb-5">
-              <div className="flex items-center gap-3">
-                <div className="bg-emerald-500 text-white p-2 rounded-xl shrink-0">
-                  <Check className="w-5 h-5" />
-                </div>
-                <div className="text-right">
-                  <h3 className="font-sans font-bold text-sm sm:text-base text-emerald-900">
-                    جهزنا الغرفة واللعبة بنجاح!
-                  </h3>
-                  <p className="text-[11px] sm:text-xs text-emerald-700 font-semibold">
-                    امسح الباركود أو شارك الرابط مع الفرق لبدء المعركة.
-                  </p>
-                </div>
-              </div>
-              {createdRoom.game_name && (
-                <span className="hidden sm:inline-block bg-white border border-emerald-200 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold shrink-0">
-                  🎮 {createdRoom.game_name}
-                </span>
-              )}
-            </div>
-
-            {/* QR codes & Actions - Single Row per team */}
-            <div className="space-y-3 mb-5">
-              {/* Team 1 (Blue) Row */}
-              <div className="bg-gradient-to-r from-cyan-50/60 via-white to-cyan-50/30 p-3 sm:p-3.5 rounded-2xl border border-cyan-200/90 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
-                <div className="flex items-center gap-3 sm:gap-3.5 w-full sm:w-auto">
-                  {/* Compact QR Code */}
-                  <div className="bg-white p-1.5 rounded-xl shadow-2xs border border-cyan-100 shrink-0">
-                    <QRCodeSVG
-                      value={getTeamUrl(createdRoom.id, 1)}
-                      size={74}
-                      level="M"
-                      includeMargin={false}
-                    />
-                  </div>
-
-                  {/* Team Name + Link */}
-                  <div className="text-right min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-primary-blue)] shrink-0" />
-                      <h4 className="font-sans font-bold text-sm text-cyan-950 truncate">
-                        {createdRoom.team_1_name}
-                      </h4>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-800 shrink-0">
-                        الفريق الأول
-                      </span>
-                    </div>
-                    <p
-                      className="text-[11px] text-slate-500 font-medium truncate max-w-[200px] sm:max-w-[260px] dir-ltr text-right"
-                      dir="ltr"
-                    >
-                      {getTeamUrl(createdRoom.id, 1)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Buttons on same line */}
-                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      copyLinkToClip(
-                        getTeamUrl(createdRoom.id, 1),
-                        createdRoom.team_1_name,
-                      )
-                    }
-                    className="flex-1 sm:flex-initial bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold cursor-pointer transition shadow-2xs"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>نسخ الرابط</span>
-                  </button>
-                  <a
-                    href={getTeamUrl(createdRoom.id, 1)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-1 sm:flex-initial bg-[var(--color-primary-blue)] hover:bg-[var(--color-depth-blue)] text-white py-2 px-3.5 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold shadow-xs transition"
-                  >
-                    <Smartphone className="w-3.5 h-3.5" />
-                    <span>ادش كلاعب</span>
-                  </a>
-                </div>
-              </div>
-
-              {/* Team 2 (Orange) Row */}
-              <div className="bg-gradient-to-r from-orange-50/60 via-white to-orange-50/30 p-3 sm:p-3.5 rounded-2xl border border-orange-200/90 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
-                <div className="flex items-center gap-3 sm:gap-3.5 w-full sm:w-auto">
-                  {/* Compact QR Code */}
-                  <div className="bg-white p-1.5 rounded-xl shadow-2xs border border-orange-100 shrink-0">
-                    <QRCodeSVG
-                      value={getTeamUrl(createdRoom.id, 2)}
-                      size={74}
-                      level="M"
-                      includeMargin={false}
-                    />
-                  </div>
-
-                  {/* Team Name + Link */}
-                  <div className="text-right min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shrink-0" />
-                      <h4 className="font-sans font-bold text-sm text-orange-950 truncate">
-                        {createdRoom.team_2_name}
-                      </h4>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 shrink-0">
-                        الفريق الثاني
-                      </span>
-                    </div>
-                    <p
-                      className="text-[11px] text-slate-500 font-medium truncate max-w-[200px] sm:max-w-[260px] dir-ltr text-right"
-                      dir="ltr"
-                    >
-                      {getTeamUrl(createdRoom.id, 2)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Buttons on same line */}
-                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      copyLinkToClip(
-                        getTeamUrl(createdRoom.id, 2),
-                        createdRoom.team_2_name,
-                      )
-                    }
-                    className="flex-1 sm:flex-initial bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold cursor-pointer transition shadow-2xs"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>نسخ الرابط</span>
-                  </button>
-                  <a
-                    href={getTeamUrl(createdRoom.id, 2)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-1 sm:flex-initial bg-orange-600 hover:bg-orange-700 text-white py-2 px-3.5 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold shadow-xs transition"
-                  >
-                    <Smartphone className="w-3.5 h-3.5" />
-                    <span>ادش كلاعب</span>
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            <div className="mb-5 rounded-xl border border-cyan-100 bg-cyan-50/70 py-2.5 px-3 text-center text-xs font-bold text-cyan-900">
-              💡 يدخل اللاعبون بالمسح أو الرابط مباشرة دون تسجيل حساب، وأنت
-              تتحكم بالمعركة من شاشة الحكم.
-            </div>
-
-            {/* Launch Referee view */}
-            <div className="border-t border-slate-100 pt-5 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="text-right">
-                <h5 className="font-bold text-sm text-slate-800">
-                  صفحة الحكم وشاشة المتابعة
-                </h5>
-                <p className="text-xs text-slate-400 font-semibold mt-0.5">
-                  أنت الحكم الآن، راقب اللعب وتحكم بالأسئلة والضربات.
-                </p>
-              </div>
-              <div className="flex gap-2.5 shrink-0 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={handleExitCreatedRoom}
-                  className="flex-1 sm:flex-initial px-4 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold rounded-xl transition cursor-pointer"
-                >
-                  اطلع من اللعبة
-                </button>
-                <a
-                  href={masterJudgeUrl}
-                  className="flex-1 sm:flex-initial px-5 py-2 bg-gradient-to-r from-[var(--color-primary-blue)] to-[var(--color-depth-blue)] hover:opacity-95 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center justify-center gap-1.5"
-                >
-                  <Crown className="w-4 h-4 fill-white animate-bounce" />
-                  ادش شاشة الحكم
-                </a>
-              </div>
-            </div>
-          </motion.div>
+          <div className="py-20 flex flex-col items-center justify-center text-center">
+            <div className="w-12 h-12 rounded-full border-4 border-[#44C530] border-t-transparent animate-spin mb-4" />
+            <h3 className="font-sans font-bold text-lg text-[#0B2D4D]">
+              تم تجهيز الغرفة بنجاح! جارٍ تحويلك لميدان اللعب...
+            </h3>
+          </div>
         )}
       </div>
 
