@@ -358,7 +358,7 @@ export function ActiveQuestionView({
               onClick={() => onPickWinner("none")}
               className="w-full rounded-full bg-slate-400 hover:bg-slate-500 py-3.5 sm:py-4 text-sm sm:text-base font-bold text-white shadow-md transition active:scale-95 disabled:opacity-60 cursor-pointer"
             >
-              ولا أحد (تعادل / بدون فائز)
+              ولا أحد
             </button>
           </div>
 

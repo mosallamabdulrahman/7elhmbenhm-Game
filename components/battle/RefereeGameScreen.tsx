@@ -171,22 +171,24 @@ export function RefereeGameScreen({
           : "justify-between overflow-x-auto overflow-y-auto"
       }`}
     >
-      <RefereeHeader
-        room={room}
-        currentTeam={currentTeam}
-        step={step}
-        isBusy={isBusy}
-        onOpenSupport={() => setSupportModalOpen(true)}
-        onConfirmEnd={() => setConfirmAction("end")}
-        onConfirmExit={() => setConfirmAction("exit")}
-        onReturnToGrid={() => {
-          setShowAnswer(false);
-          setTeamSelectOpen(false);
-          setForceGridView(true);
-          if (activeQuestion) onDeselectQuestion(activeQuestion.id);
-        }}
-        onSetCurrentTurn={onSetCurrentTurn}
-      />
+      {step !== "grid" && room.status !== "finished" && (
+        <RefereeHeader
+          room={room}
+          currentTeam={currentTeam}
+          step={step}
+          isBusy={isBusy}
+          onOpenSupport={() => setSupportModalOpen(true)}
+          onConfirmEnd={() => setConfirmAction("end")}
+          onConfirmExit={() => setConfirmAction("exit")}
+          onReturnToGrid={() => {
+            setShowAnswer(false);
+            setTeamSelectOpen(false);
+            setForceGridView(true);
+            if (activeQuestion) onDeselectQuestion(activeQuestion.id);
+          }}
+          onSetCurrentTurn={onSetCurrentTurn}
+        />
+      )}
 
       <main
         className={`w-full flex-1 flex flex-col justify-center items-center min-h-0 ${

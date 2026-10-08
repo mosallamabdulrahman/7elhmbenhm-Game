@@ -1,6 +1,6 @@
 import React from "react";
 import type { Metadata, Viewport } from "next";
-import { Cairo } from "next/font/google";
+import { Baloo_Bhaijaan_2, Cairo } from "next/font/google";
 import "./globals.css";
 
 const cairo = Cairo({
@@ -8,6 +8,13 @@ const cairo = Cairo({
   weight: ["300", "400", "500", "600", "700", "800", "900"],
   display: "swap",
   variable: "--font-cairo",
+});
+
+const gameDisplay = Baloo_Bhaijaan_2({
+  subsets: ["arabic", "latin"],
+  weight: ["700", "800"],
+  display: "swap",
+  variable: "--font-game-display",
 });
 
 export const viewport: Viewport = {
@@ -36,7 +43,7 @@ export default function RootLayout({
     <html
       lang="ar"
       dir="rtl"
-      className={`scroll-smooth ${cairo.variable}`}
+      className={`scroll-smooth ${cairo.variable} ${gameDisplay.variable}`}
       suppressHydrationWarning
     >
       <head>
