@@ -2,57 +2,43 @@
 
 ## Evidence
 
-- Source visual truth: `public/images/WhatsApp Image 2026-10-04 at 8.00.14 PM.jpeg`
-- Implementation screenshot: `scratch/room-implementation-revised.png`
-- Wide screenshot: `scratch/room-implementation-revised-wide.png`
-- Mobile screenshot: `scratch/room-mobile-revised.png`
-- Full-view comparison: `scratch/room-comparison-revised.jpg`
-- Focused board comparison: `scratch/room-comparison-revised-focus.jpg`
-- Desktop viewport: 1672 x 941 CSS px, device scale factor 1
-- Wide viewport: 1918 x 872 CSS px, device scale factor 1
-- Mobile viewport: 375 x 667 CSS px, device scale factor 1
-- Source and primary implementation pixels: 1672 x 941, no density normalization required
-- State: initial room grid, both scores at 0, all 30 questions unused
+- Source visual: `public/images/WhatsApp Image 2026-10-04 at 8.00.14 PM.jpeg`
+- Desktop checks: 1672 x 941 and 1881 x 775 CSS px
+- Mobile check: 390 x 844 CSS px, device scale factor 1
+- State: room grid with 30 unused questions and both team scores at 0
 
-## Required Fidelity Surfaces
+## Latest Visual Checks
 
-- Fonts and typography: Baloo Bhaijaan 2 ExtraBold remains scoped to the room screen. Arabic labels, scores, and question numbers preserve the reference hierarchy.
-- Spacing and layout: the center board was tightened per the latest feedback. Measured inner-edge-to-button padding is about 9.5 px. Row gaps increased from about 12 px to about 17 px. Buttons measure 115.1 x 81.5 px at the reference viewport and no longer stretch on wide screens.
-- Colors and tokens: navy, sky blue, white, and green match the supplied palette. Existing gradients, bevels, shadows, and split board treatment are preserved.
-- Image quality and assets: `/images/logo.png` remains the only image used by the room UI. All other surfaces and decorative marks remain code-rendered as required.
-- Copy and content: labels remain exactly `الفريق الأول` and `الفريق الثاني`; scores start at 0; buttons remain numbered 1 through 30.
+- Question face color uses `#F4FFFF` and the lower bevel uses `#D1DADF`.
+- Question numbers use `#082555`.
+- Blue faces, geometric shapes, and the second-team shell use solid `#44ADFE`.
+- Green faces, geometric shapes, and the first-team shell use solid `#59F34D`.
+- Geometric faces have no internal facet or highlight shape; only the lower extrusion remains for depth.
+- The board frame is thinner and white, with a subtle cool-blue and green inner rim.
+- The board field is split into a light blue-tinted left half and green-tinted right half.
+- The question grid begins 5 px inside the inner board surface.
+- Team shells are slightly smaller and touch the board edge like the reference.
+- Desktop team placement is calculated from the board width and keeps an 8 px overlap, so no gap appears at different desktop sizes.
+- Each score strip has a separate score block and team-tinted strike block.
+- Triangle and lightning SVG geometry matches the rounded, extruded reference silhouettes.
+- The board top and bottom caps use blue and green halves with the narrow center wedge and lower point from the reference.
+- The top and bottom caps sit farther from the first and last question rows while remaining attached to the frame.
+- Question buttons are slightly smaller and the grid row gap is exactly 1 px.
+- The board has a subtle desktop tilt; mobile remains level for readability.
 
-## Latest Requested Changes
+## Responsive Verification
 
-- Preserved RTL grid flow without adding a direction override. Rows display 5 to 1 visually from left to right.
-- Moved team one to the green right panel and team two to the blue left panel.
-- Enlarged both team panels and tightened their internal proportions.
-- Enlarged and moved the four logo-adjacent decorations closer to the logo.
-- Enlarged side decorations and rebuilt both side rails as visible vertical-to-diagonal white rails.
-- Locked the stage aspect ratio so wide viewports cannot squash the numbered buttons.
+- Chrome rendered all 30 buttons at desktop, wide desktop, and mobile sizes.
+- Mobile document size equals its 390 x 844 viewport with no horizontal or vertical overflow.
+- Mobile board bounds: x 7.8, y 113.9, width 374.4, height 552.8 CSS px.
+- Mobile question buttons measure approximately 60.7 x 57.3 CSS px.
+- Both compact team panels remain fully visible at the bottom of the mobile viewport.
 
-## Browser Verification
+## Behavior
 
-- Chrome rendered the screen at all three target viewports.
-- Chrome DevTools Protocol reported 30 interactive buttons and zero runtime, console, or resource errors after the dev server restart.
-- First button bounds at 1672 x 941: x 1062.1, y 282.6, width 115.1, height 81.5 CSS px.
-- Stage bounds at 1672 x 941: x 0, y 0, width 1672, height 941 CSS px.
-- Body scroll width equals desktop viewport width. Mobile keeps the 920 px game canvas inside the component's horizontal pan surface.
-
-## Comparison History
-
-- Pass 1: reduced side padding, increased row spacing, swapped team positions, enlarged panels and decorations, and locked stage aspect ratio.
-- Pass 2: corrected an invalid CSS width expression that collapsed the stage.
-- Pass 3: reduced excessive column spacing while retaining approximately 10 px side padding.
-- Pass 4: replaced the dark clipped side-frame masses with explicit vertical and diagonal rails matching the reference structure.
-- Pass 5: restarted the dev server after production build artifacts invalidated two dev chunks, then repeated browser and console verification successfully.
-
-## Intentional Differences
-
-- Team labels and scores are swapped relative to the original visual reference because the latest instruction explicitly places team one on the right and team two on the left.
-- Number order is RTL relative to the original reference because the latest instruction explicitly preserves RTL flow.
-- Buttons are less horizontally elongated and row spacing is larger than the original reference per the latest marked-up feedback.
-- Wide screens use aspect-preserving side space instead of distorting the game canvas.
+- Existing question selection, sequential locking, scoring, events, and handlers remain unchanged.
+- RTL number flow and the requested team placement remain unchanged.
+- The center logo remains the only image asset; all other room visuals are code-rendered.
 
 ## Final Result
 
