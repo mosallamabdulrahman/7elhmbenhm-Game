@@ -14,6 +14,7 @@ export interface RefereeHeaderProps {
   onConfirmExit: () => void;
   onReturnToGrid: () => void;
   onSetCurrentTurn: (turn: number) => void;
+  reserveMenuSpace?: boolean;
 }
 
 export function RefereeHeader({
@@ -26,13 +27,18 @@ export function RefereeHeader({
   onConfirmExit,
   onReturnToGrid,
   onSetCurrentTurn,
+  reserveMenuSpace = false,
 }: RefereeHeaderProps) {
   const isPlaying = room?.status === "playing";
 
   return (
     <header className="w-full bg-gradient-to-r from-[#021024] via-[#07264a] to-[#021024] border-b border-[#67C3FF]/25 shadow-lg shadow-black/50 shrink-0 select-none z-40 transition-all">
       {/* Container: Sleek, compact height and responsive spacing */}
-      <div className="max-w-[98rem] mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3">
+      <div
+        className={`max-w-[98rem] mx-auto py-2 sm:py-2.5 flex items-center justify-between gap-3 ${
+          reserveMenuSpace ? "pl-3 pr-16 sm:pl-6 sm:pr-20" : "px-3 sm:px-6"
+        }`}
+      >
         
         {/* Right Section: Logo & Current Turn Pill */}
         <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">

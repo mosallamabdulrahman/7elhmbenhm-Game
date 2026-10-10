@@ -10,3 +10,4 @@ __*
 *.temp
 .temp/
 backup/
+scratch/

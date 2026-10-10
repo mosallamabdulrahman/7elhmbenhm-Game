@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { Menu, X } from "lucide-react";
 import { FinishedCelebration, ImageModal } from "./CombatShared";
 import { SequentialQuestionGrid } from "./referee/SequentialQuestionGrid";
 import { ConfirmActionModal } from "./modals/ConfirmActionModal";
@@ -96,6 +97,18 @@ export function RefereeGameScreen({
     null,
   );
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
+  const [gridHeaderOpen, setGridHeaderOpen] = useState(false);
+
+  useEffect(() => {
+    if (!gridHeaderOpen) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setGridHeaderOpen(false);
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [gridHeaderOpen]);
 
   // Sync question change states
   useEffect(() => {
@@ -190,6 +203,58 @@ export function RefereeGameScreen({
         />
       )}
 
+      {step === "grid" && room.status !== "finished" && (
+        <>
+          <AnimatePresence>
+            {gridHeaderOpen && (
+              <motion.div
+                id="grid-referee-header"
+                initial={{ opacity: 0, x: "100%" }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: "100%" }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                className="fixed inset-x-0 top-0 z-50 origin-right"
+              >
+                <RefereeHeader
+                  room={room}
+                  currentTeam={currentTeam}
+                  step={step}
+                  isBusy={isBusy}
+                  reserveMenuSpace
+                  onOpenSupport={() => setSupportModalOpen(true)}
+                  onConfirmEnd={() => setConfirmAction("end")}
+                  onConfirmExit={() => setConfirmAction("exit")}
+                  onReturnToGrid={() => setGridHeaderOpen(false)}
+                  onSetCurrentTurn={onSetCurrentTurn}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <motion.button
+            type="button"
+            aria-label={gridHeaderOpen ? "إغلاق القائمة" : "فتح القائمة"}
+            aria-controls="grid-referee-header"
+            aria-expanded={gridHeaderOpen}
+            title={gridHeaderOpen ? "إغلاق القائمة" : "فتح القائمة"}
+            onClick={() => setGridHeaderOpen((isOpen) => !isOpen)}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.94 }}
+            className={`fixed right-3 top-3 z-[60] grid size-11 place-items-center rounded-lg border text-white shadow-[0_8px_20px_rgba(0,0,0,0.48),inset_0_1px_1px_rgba(255,255,255,0.22)] backdrop-blur-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#67C3FF] sm:size-12 ${
+              gridHeaderOpen
+                ? "border-rose-300/60 bg-[#701d32]/95 hover:bg-[#8d2440]"
+                : "border-[#67C3FF]/60 bg-[#031d38]/92 hover:bg-[#0a3158]"
+            }`}
+          >
+            {gridHeaderOpen ? (
+              <X className="size-6" aria-hidden="true" />
+            ) : (
+              <Menu className="size-6" aria-hidden="true" />
+            )}
+          </motion.button>
+        </>
+      )}
+
       <main
         className={`w-full flex-1 flex flex-col justify-center items-center min-h-0 ${
           step === "grid" ? "p-0 m-0 overflow-hidden" : "px-1 sm:px-2 md:px-4"
@@ -215,7 +280,10 @@ export function RefereeGameScreen({
                 teamColors={teamColors}
                 disabled={room.status !== "playing"}
                 selectedCategories={room.selected_categories}
-                onSelect={onSelectQuestion}
+                onSelect={(question) => {
+                  setGridHeaderOpen(false);
+                  onSelectQuestion(question);
+                }}
               />
             </motion.div>
           </AnimatePresence>
